@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "mox",
+  "version": "0.1.0",
+  "identifier": "dev.moxart.moxdl",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "mox",
+        "width": 1040,
+        "height": 680,
+        "minWidth": 720,
+        "minHeight": 440,
+        "backgroundColor": "#121316",
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "A fast, resumable, multi-connection download manager",
+    "longDescription": "The desktop app for mox: downloads over many connections, resumes after a pause, a reboot or an outage, and lets you choose what downloads first.",
+    "publisher": "Patrick Der Avakians",
+    "copyright": "MIT License",
+    "homepage": "https://github.com/moxart/moxdl-desktop",
+    "license": "MIT"
+  }
+}

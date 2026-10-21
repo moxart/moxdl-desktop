@@ -1,0 +1,49 @@
+/*
+ * The whole look of the app lives here. Components only use these names (bg-surface,
+ * text-muted, rounded-card, ...), so changing a value below restyles everything that uses it.
+ * Tailwind turns each --color-x into bg-x, text-x and border-x, each --radius-x into rounded-x,
+ * and --font-sans / --font-mono into font-sans / font-mono.
+ */
+
+/* Dark, for the controls the system draws too: dropdown menus, checkboxes, scrollbars. Without
+   it Linux's WebKit drew them light, white boxes with pale text on them. */
+:root {
+  color-scheme: dark;
+}
+@theme {
+  /* Surfaces, from the window background up to things that sit on top. */
+  --color-bg: #121316;
+  --color-surface: #191b1f;
+  --color-raised: #22252a;
+  --color-hover: #2a2d33;
+  --color-line: #2c3036;
+
+  /* Text. */
+  --color-text: #e7e4df;
+  --color-muted: #9a9ca3;
+  --color-faint: #62666d;
+
+  /* mox copper, the color of the progress bar in the terminal. */
+  --color-accent: #d7875f;
+  --color-accent-strong: #d75f00;
+  --color-on-accent: #1b120b;
+
+  /* What a status means. */
+  --color-ok: #7fb685;
+  --color-warn: #e0b354;
+  --color-danger: #e06c75;
+
+  /* The piece map: nothing, some, most and all of a cell on disk. */
+  --color-piece-0: #2a2d33;
+  --color-piece-1: #5b3a25;
+  --color-piece-2: #a85b2a;
+  --color-piece-3: #d7875f;
+
+  /* Corners. */
+  --radius-card: 12px;
+  --radius-control: 8px;
+
+  /* Type. */
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", monospace;
+}
