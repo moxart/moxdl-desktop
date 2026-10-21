@@ -81,6 +81,9 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         emit({ type: "added", ids });
         break;
       }
+      case "hold_all":
+        for (const d of downloads) if (!["done", "error"].includes(d.status)) d.status = c.on ? "held" : "waiting";
+        break;
       case "hold": {
         const d = downloads[find(c.id)];
         if (d) d.status = c.on ? "held" : "waiting";

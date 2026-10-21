@@ -73,6 +73,7 @@ export type EngineEvent =
 export type Command =
   | { cmd: "add"; text?: string; urls?: string[]; dir?: string; sort?: boolean; stream?: boolean }
   | { cmd: "hold"; id: number; on: boolean }
+  | { cmd: "hold_all"; on: boolean }
   | { cmd: "next"; id: number }
   | { cmd: "move"; id: number; to: number }
   | { cmd: "focus"; id: number | null }

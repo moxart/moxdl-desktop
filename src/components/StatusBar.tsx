@@ -26,6 +26,8 @@ export const StatusBar = ({ engine }: { engine: Engine }) => {
   const done = downloads.filter((d) => d.status === "done").length;
   const failed = downloads.filter((d) => d.status === "error").length;
   const focus = downloads.find((d) => d.id === state?.focus);
+  const unfinished = downloads.filter((d) => d.status !== "done" && d.status !== "error");
+  const allHeld = unfinished.length > 0 && unfinished.every((d) => d.status === "held");
   const limits = LIMITS.some(([, v]) => v === (state?.limit ?? null))
     ? LIMITS
     : [...LIMITS, [humanSize(state?.limit ?? 0) + "/s", state?.limit ?? null] as [string, number | null]];
@@ -38,6 +40,11 @@ export const StatusBar = ({ engine }: { engine: Engine }) => {
       {state && state.speed > 0 && <span className="tabular text-text">{humanSize(state.speed)}/s</span>}
       {focus && <span className="truncate text-accent">Only {focus.name}</span>}
       <span className="ml-auto" />
+      {unfinished.length > 0 && (
+        <button type="button" onClick={() => send({ cmd: "hold_all", on: !allHeld })} className="hover:text-text">
+          {allHeld ? "Resume all" : "Pause all"}
+        </button>
+      )}
       {done + failed > 0 && (
         <button type="button" onClick={() => send({ cmd: "clear" })} className="hover:text-text">
           Clear finished
