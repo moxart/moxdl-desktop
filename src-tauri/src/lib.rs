@@ -99,7 +99,7 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
         command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW: no console flashing up
     }
     let mut child = command.spawn().map_err(|e| {
-        format!("could not start mox: {e}. Install it with pipx install moxdl, or set MOX_ENGINE.")
+        format!("could not start Mox: {e}. Install it with pipx install moxdl, or set MOX_ENGINE.")
     })?;
 
     let stdout = child.stdout.take().expect("piped stdout");
@@ -133,7 +133,7 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
             .state::<Engine>()
             .busy
             .store(false, Ordering::Relaxed);
-        set_tray_status(&events, "mox stopped");
+        set_tray_status(&events, "Mox stopped");
         let _ = events.emit("engine-exit", ());
     });
     let logs = app.clone();
@@ -214,8 +214,8 @@ fn notify_finished(app: &AppHandle, event: &Value) {
 fn send_to_engine(app: &AppHandle, line: &str) -> Result<(), String> {
     let state = app.state::<Engine>();
     let mut stdin = state.stdin.lock().unwrap();
-    let pipe = stdin.as_mut().ok_or("mox is not running")?;
-    writeln!(pipe, "{}", line.trim_end()).map_err(|e| format!("mox stopped: {e}"))?;
+    let pipe = stdin.as_mut().ok_or("Mox is not running")?;
+    writeln!(pipe, "{}", line.trim_end()).map_err(|e| format!("Mox stopped: {e}"))?;
     pipe.flush().map_err(|e| e.to_string())
 }
 
@@ -269,8 +269,8 @@ fn show_window(app: &AppHandle) {
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let status = MenuItem::with_id(app, "status", "Starting mox…", false, None::<&str>)?;
-    let show = MenuItem::with_id(app, "show", "Show mox", true, None::<&str>)?;
+    let status = MenuItem::with_id(app, "status", "Starting Mox…", false, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show Mox", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause_all", "Pause all", true, None::<&str>)?;
     let resume = MenuItem::with_id(app, "resume_all", "Resume all", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
@@ -286,7 +286,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &quit_item,
         ],
     )?;
-    let mut tray = TrayIconBuilder::with_id("mox").tooltip("mox").menu(&menu);
+    let mut tray = TrayIconBuilder::with_id("mox").tooltip("Mox").menu(&menu);
     if let Some(icon) = app.default_window_icon() {
         tray = tray.icon(icon.clone());
     }
@@ -346,7 +346,7 @@ pub fn run() {
                         let _ = app
                             .notification()
                             .builder()
-                            .title("mox is still downloading")
+                            .title("Mox is still downloading")
                             .body("Its icon by the clock shows the speed, and quits it.")
                             .show();
                     }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mox",
+  "productName": "Mox",
   "version": "0.2.2",
   "identifier": "dev.moxart.moxdl",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "mox",
+        "title": "Mox",
         "width": 1040,
         "height": 680,
         "minWidth": 720,
@@ -40,7 +40,7 @@
     ],
     "category": "Utility",
     "shortDescription": "A fast, resumable, multi-connection download manager",
-    "longDescription": "The desktop app for mox: downloads over many connections, resumes after a pause, a reboot or an outage, and lets you choose what downloads first.",
+    "longDescription": "The desktop app for Mox: downloads over many connections, resumes after a pause, a reboot or an outage, and lets you choose what downloads first.",
     "publisher": "Patrick Der Avakians",
     "copyright": "MIT License",
     "homepage": "https://github.com/moxart/moxdl-desktop",

@@ -22,12 +22,12 @@ const TABS: [Tab, string][] = [
 const EngineProblem = ({ engine }: { engine: Engine }) => (
   <div className="grid h-full place-items-center p-8">
     <div className="max-w-md text-center">
-      <p className="font-medium">{engine.connection === "missing" ? "mox could not be started" : "mox stopped"}</p>
+      <p className="font-medium">{engine.connection === "missing" ? "Mox could not be started" : "Mox stopped"}</p>
       <p className="mt-2 text-sm text-muted">
         {engine.problem || "The download engine exited. Downloads keep their progress and continue when it starts again."}
       </p>
       <button type="button" onClick={engine.restart} className="mt-5 rounded-control bg-raised px-4 py-2 hover:bg-hover">
-        Start mox again
+        Start Mox again
       </button>
     </div>
   </div>
@@ -78,7 +78,7 @@ export const App = () => {
             </button>
           ))}
         </nav>
-        <span className="ml-auto text-xs text-faint">{engine.version && `mox ${engine.version}`}</span>
+        <span className="ml-auto text-xs text-faint">{engine.version && `Mox ${engine.version}`}</span>
         <button
           type="button"
           onClick={openAdd}
