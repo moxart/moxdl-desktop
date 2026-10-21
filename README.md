@@ -19,8 +19,8 @@ Built with Tauri 2, React and Tailwind. Dark theme. Linux for now.
 From a release, on Linux:
 
 ```bash
-sudo apt install ./mox_0.1.0_amd64.deb      # Debian, Ubuntu
-chmod +x mox_0.1.0_amd64.AppImage && ./mox_0.1.0_amd64.AppImage   # any distribution
+sudo apt install ./mox_0.2.0_amd64.deb      # Debian, Ubuntu
+chmod +x mox_0.2.0_amd64.AppImage && ./mox_0.2.0_amd64.AppImage   # any distribution
 ```
 
 mox is built into the app, so nothing else is needed: no Python, no separate mox.
