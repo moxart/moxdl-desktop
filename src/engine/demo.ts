@@ -4,8 +4,11 @@
 import type { Command, Download, EngineEvent } from "./types";
 
 const MB = 1024 ** 2;
-// ?version=1.8 shows that rather than "demo", for screenshots of the app.
-const VERSION = new URLSearchParams(location.search).get("version") ?? "demo";
+// For screenshots of the app: ?version=1.8 shows that rather than "demo", and ?shot leaves out
+// the failed download that is otherwise there to style errors by.
+const PARAMS = new URLSearchParams(location.search);
+const VERSION = PARAMS.get("version") ?? "demo";
+const SHOT = PARAMS.has("shot");
 const CELLS = 120;
 
 const episode = (n: number, total: number): Download => ({
@@ -34,7 +37,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
   let next = 20;
   const downloads: Download[] = [1, 2, 3, 4, 5, 6].map((n) => episode(n, (900 + n * 110) * MB));
   Object.assign(downloads[0], { status: "done", done: downloads[0].total, path: "~/Downloads/mox/Series/Mr Robot/Season 04/" + downloads[0].name });
-  Object.assign(downloads[5], { status: "error", message: "HTTP 403 Forbidden", expired: true });
+  if (!SHOT) Object.assign(downloads[5], { status: "error", message: "HTTP 403 Forbidden", expired: true });
   // Some way along already, so the piece maps have something to show.
   ([[1, 0.62], [2, 0.35], [3, 0.15]] as const).forEach(([i, part]) => (downloads[i].done = downloads[i].total! * part));
 
