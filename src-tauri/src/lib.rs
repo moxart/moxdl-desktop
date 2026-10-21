@@ -64,6 +64,12 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    // mox saves to its working folder unless a dir is set. That was wherever the app started:
+    // src-tauri in development, which put a test download in the repository, and possibly a
+    // folder no one can write to when started from a desktop menu. Downloads is what people expect.
+    if let Ok(folder) = app.path().download_dir().or_else(|_| app.path().home_dir()) {
+        command.current_dir(folder);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

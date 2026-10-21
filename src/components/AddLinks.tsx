@@ -101,7 +101,7 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
               <input
                 value={dir}
                 onChange={(e) => setDir(e.target.value)}
-                placeholder="The folder mox was started in"
+                placeholder="Downloads, unless Settings name another folder"
                 className="min-w-0 flex-1 rounded-control border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
               />
               <button type="button" onClick={pickFolder} className="inline-flex items-center gap-2 rounded-control bg-raised px-3 hover:bg-hover">
