@@ -111,7 +111,7 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
           </div>
 
           <div className="space-y-3">
-            <Toggle label="Sort into folders" hint="Videos, Music and so on, and series by show and season" checked={sort} onChange={setSort} />
+            <Toggle label="Sort into folders" hint="In a mox folder there: Videos, Music and so on, and series by show and season" checked={sort} onChange={setSort} />
             <Toggle label="Watch while downloading" hint="Fill each file from the start, to play it before it is done" checked={stream} onChange={setStream} />
           </div>
         </div>
