@@ -2,6 +2,8 @@
 
 > **Test version.** It works, and its look and features will still change. Try it, and report what goes wrong.
 
+![mox downloading a season: one episode done, three downloading with the piece map of each file, one waiting its turn, and one whose link expired](docs/screenshot.png)
+
 A desktop app for [mox](https://github.com/moxart/moxdl), the multi-connection download manager. It is a window on mox, not a second downloader: the app starts mox's engine and talks to it, so every feature of mox works here, and new ones arrive with mox.
 
 - Many connections per file, and a progress bar that shows which parts of the file are on disk.

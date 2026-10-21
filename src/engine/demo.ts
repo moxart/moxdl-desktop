@@ -4,6 +4,8 @@
 import type { Command, Download, EngineEvent } from "./types";
 
 const MB = 1024 ** 2;
+// ?version=1.8 shows that rather than "demo", for screenshots of the app.
+const VERSION = new URLSearchParams(location.search).get("version") ?? "demo";
 const CELLS = 120;
 
 const episode = (n: number, total: number): Download => ({
@@ -31,8 +33,10 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
   let focus: number | null = null;
   let next = 20;
   const downloads: Download[] = [1, 2, 3, 4, 5, 6].map((n) => episode(n, (900 + n * 110) * MB));
-  Object.assign(downloads[0], { status: "done", done: downloads[0].total, path: "~/Downloads/Series/Mr Robot/Season 04/" + downloads[0].name });
+  Object.assign(downloads[0], { status: "done", done: downloads[0].total, path: "~/Downloads/mox/Series/Mr Robot/Season 04/" + downloads[0].name });
   Object.assign(downloads[5], { status: "error", message: "HTTP 403 Forbidden", expired: true });
+  // Some way along already, so the piece maps have something to show.
+  ([[1, 0.62], [2, 0.35], [3, 0.15]] as const).forEach(([i, part]) => (downloads[i].done = downloads[i].total! * part));
 
   const tick = () => {
     const unfinished = downloads.filter((d) => !["done", "error", "held"].includes(d.status));
@@ -65,7 +69,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         emit({ type: "finished", id: d.id, status: "done", name: d.name, message: "", path: d.path });
       }
     }
-    emit({ type: "state", version: "demo", downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit });
+    emit({ type: "state", version: VERSION, downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit });
   };
 
   const find = (id: number) => downloads.findIndex((d) => d.id === id);
@@ -147,7 +151,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
     tick();
   };
 
-  emit({ type: "hello", version: "demo", settings: { dir: "~/Downloads", sort: "on" }, jobs, limit });
+  emit({ type: "hello", version: VERSION, settings: { dir: "~/Downloads", sort: "on" }, jobs, limit });
   const timer = setInterval(tick, 250);
   return { send, stop: () => clearInterval(timer) };
 };
