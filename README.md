@@ -1,4 +1,4 @@
-# mox desktop
+# <img src="app-icon.png" alt="" width="40" align="top"> mox desktop
 
 > **Test version.** It works, and its look and features will still change. Try it, and report what goes wrong.
 
@@ -57,7 +57,7 @@ opens the interface in a browser at http://localhost:1420 with a pretend engine 
 
 - **Colors, corners and fonts** are all in [`src/theme/tokens.css`](src/theme/tokens.css). Components only use the names defined there (`bg-surface`, `text-muted`, `rounded-card`…), so changing a value restyles everything that uses it.
 - **Each part of the window** is its own file in [`src/components/`](src/components): a download's row, the piece-map bar, the add dialog, the dropdowns, the status bar, history, settings.
-- **The icon** is made from [`app-icon.svg`](app-icon.svg): `npx tauri icon app-icon.svg` makes every size.
+- **The icon** is made from [`app-icon.png`](app-icon.png), 1024 px with a transparent background: `npx tauri icon app-icon.png` makes every size.
 
 ## How it fits together
 
