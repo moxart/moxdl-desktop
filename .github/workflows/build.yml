@@ -26,10 +26,11 @@ jobs:
             bundles: deb,appimage
           - os: windows-latest
             bundles: nsis
+          # app as well as dmg: the updater's Mox.app.tar.gz is made only for the app target.
           - os: macos-latest # Apple silicon
-            bundles: dmg
+            bundles: app,dmg
           - os: macos-15-intel # Intel; GitHub retired macos-13, whose jobs sat queued
-            bundles: dmg
+            bundles: app,dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
