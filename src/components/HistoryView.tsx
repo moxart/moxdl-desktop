@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { Engine } from "../engine/useEngine";
 import { humanSize } from "../lib/format";
@@ -12,6 +13,7 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
 
 export const HistoryView = ({ engine }: { engine: Engine }) => {
   const { history, send } = engine;
+  const [query, setQuery] = useState("");
   useEffect(() => send({ cmd: "history", limit: 500 }), [send]);
 
   if (!history) return <p className="p-6 text-muted">Loading…</p>;
@@ -44,9 +46,21 @@ export const HistoryView = ({ engine }: { engine: Engine }) => {
       </section>
 
       <section>
+        <label className="mb-3 flex items-center gap-2 rounded-control border border-line bg-surface px-3 py-1.5 focus-within:border-accent">
+          <Search className="size-4 shrink-0 text-faint" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the history"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+          />
+        </label>
         <table className="w-full text-sm">
           <tbody>
-            {[...history.entries].reverse().map((e, i) => (
+            {[...history.entries]
+              .reverse()
+              .filter((e) => !query || e.name.toLowerCase().includes(query.toLowerCase()))
+              .map((e, i) => (
               <tr key={i} className="border-b border-line/60">
                 <td className="py-2 pr-4 text-muted tabular whitespace-nowrap">{e.time.replace("T", " ").slice(0, 16)}</td>
                 <td className="max-w-0 w-full truncate py-2 pr-4" title={e.path}>

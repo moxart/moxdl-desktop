@@ -1,3 +1,4 @@
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 
 import type { Engine } from "../engine/useEngine";
@@ -30,8 +31,33 @@ type SettingsViewProps = {
   onWatchClipboard: (on: boolean) => void;
 };
 
+/** Start at login, as the system has it: null outside the app, where there is nothing to start. */
+const useStartAtLogin = () => {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    isEnabled().then(setOn, () => setOn(null));
+  }, []);
+  const change = (wanted: boolean) =>
+    (wanted ? enable() : disable()).then(
+      () => isEnabled().then(setOn),
+      () => {},
+    );
+  return [on, change] as const;
+};
+
+const Switch = ({ label, about, checked, onChange }: { label: string; about: string; checked: boolean; onChange: (on: boolean) => void }) => (
+  <label className="flex cursor-pointer items-start justify-between gap-6">
+    <span>
+      <span className="block text-sm">{label}</span>
+      <span className="block text-xs text-muted">{about}</span>
+    </span>
+    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 size-4 accent-accent" />
+  </label>
+);
+
 export const SettingsView = ({ engine, watchClipboard, onWatchClipboard }: SettingsViewProps) => {
   const { config, send } = engine;
+  const [startAtLogin, setStartAtLogin] = useStartAtLogin();
   useEffect(() => send({ cmd: "config" }), [send]);
   if (!config) return <p className="p-6 text-muted">Loading…</p>;
 
@@ -40,20 +66,22 @@ export const SettingsView = ({ engine, watchClipboard, onWatchClipboard }: Setti
   return (
     <div className="max-w-3xl p-6">
       <h2 className="mb-3 text-sm font-semibold">This app</h2>
-      <label className="mb-8 flex cursor-pointer items-start justify-between gap-6">
-        <span>
-          <span className="block text-sm">Offer copied links</span>
-          <span className="block text-xs text-muted">
-            When Mox comes to the front with new file links on the clipboard, ask whether to download them
-          </span>
-        </span>
-        <input
-          type="checkbox"
+      <div className="mb-8 space-y-4">
+        <Switch
+          label="Offer copied links"
+          about="When Mox comes to the front with new file links on the clipboard, ask whether to download them"
           checked={watchClipboard}
-          onChange={(e) => onWatchClipboard(e.target.checked)}
-          className="mt-1 size-4 accent-accent"
+          onChange={onWatchClipboard}
         />
-      </label>
+        {startAtLogin !== null && (
+          <Switch
+            label="Start Mox when I log in"
+            about="In the tray, by the clock, carrying on with what was left unfinished"
+            checked={startAtLogin}
+            onChange={setStartAtLogin}
+          />
+        )}
+      </div>
       <h2 className="mb-1 text-sm font-semibold">Mox</h2>
       <p className="mb-5 text-sm text-muted">
         The same settings as <code className="font-mono text-text">mox config</code> in the terminal. Saved in{" "}

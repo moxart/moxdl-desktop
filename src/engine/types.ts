@@ -36,6 +36,7 @@ export type EngineState = {
   focus: number | null;
   jobs: number;
   limit: number | null;
+  free: number | null; // bytes free where downloads go
 };
 
 export type HistoryEntry = {

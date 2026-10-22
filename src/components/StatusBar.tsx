@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Engine } from "../engine/useEngine";
 import { humanSize } from "../lib/format";
 import { Select } from "./Select";
+import { SpeedGraph } from "./SpeedGraph";
 
 const LIMITS: [string, number | null][] = [
   ["No limit", null],
@@ -37,9 +38,15 @@ export const StatusBar = ({ engine }: { engine: Engine }) => {
       <span className="tabular">
         {done}/{downloads.length} done{failed ? ` · ${failed} failed` : ""}
       </span>
+      {state && <SpeedGraph speed={state.speed} />}
       {state && state.speed > 0 && <span className="tabular text-text">{humanSize(state.speed)}/s</span>}
       {focus && <span className="truncate text-accent">Only {focus.name}</span>}
       <span className="ml-auto" />
+      {state?.free != null && (
+        <span className="tabular" title="Free where downloads go">
+          {humanSize(state.free)} free
+        </span>
+      )}
       {unfinished.length > 0 && (
         <button type="button" onClick={() => send({ cmd: "hold_all", on: !allHeld })} className="hover:text-text">
           {allHeld ? "Resume all" : "Pause all"}

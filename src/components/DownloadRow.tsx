@@ -26,6 +26,9 @@ type DownloadRowProps = {
   place: number | null; // its place in line while waiting: 1 is next
   focused: boolean;
   first: boolean; // first unfinished in the list, so "download next" means nothing
+  selected: boolean; // the row the keys act on
+  armed: boolean; // Delete was pressed once on it
+  onSelect: () => void;
   send: (command: Command) => void;
   dragging: boolean;
   dropAbove: boolean;
@@ -71,6 +74,8 @@ export const DownloadRow = (props: DownloadRowProps) => {
 
   return (
     <li
+      data-download={d.id}
+      onMouseDown={props.onSelect}
       draggable={!finished}
       onDragStart={props.onDragStart}
       onDragOver={(e) => {
@@ -83,6 +88,8 @@ export const DownloadRow = (props: DownloadRowProps) => {
         "group relative grid grid-cols-[20px_minmax(0,1fr)] items-center gap-x-3 rounded-card px-3 py-2.5 transition-colors hover:bg-surface",
         props.dragging && "opacity-40",
         focused && "bg-accent/5",
+        props.selected && "bg-surface ring-1 ring-accent/35",
+        props.armed && "ring-danger/60",
       )}
     >
       {props.dropAbove && <span className="absolute inset-x-3 -top-px h-0.5 rounded-full bg-accent" />}
@@ -146,8 +153,8 @@ export const DownloadRow = (props: DownloadRowProps) => {
         {d.status === "error" && <IconButton icon={RotateCw} label="Try again" onClick={() => send({ cmd: "retry", id: d.id })} />}
         <IconButton
           icon={X}
-          label={confirmRemove ? "Click again to remove. The partial file stays, to continue later" : "Remove from the list"}
-          danger={confirmRemove}
+          label={confirmRemove || props.armed ? "Click again to remove. The partial file stays, to continue later" : "Remove from the list"}
+          danger={confirmRemove || props.armed}
           onClick={() => (confirmRemove ? send({ cmd: "remove", id: d.id }) : setConfirmRemove(true))}
         />
       </div>

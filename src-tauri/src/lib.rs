@@ -365,6 +365,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        // Started at login, it starts with --hidden: in the tray, where it carries on with what
+        // was left unfinished, rather than as a window in the way.
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--hidden"]),
+        ))
         .manage(Engine {
             child: Mutex::new(None),
             stdin: Mutex::new(None),
@@ -392,6 +398,12 @@ pub fn run() {
             // Started by a mox:// link: it is among the arguments.
             let args: Vec<String> = std::env::args().skip(1).collect();
             take_links(app.handle(), args.iter().map(String::as_str));
+            // The window starts hidden (tauri.conf.json), so a start at login never flashes it.
+            // Without a tray to come back from, it shows all the same.
+            let hidden = args.iter().any(|a| a == "--hidden") && app.try_state::<Tray>().is_some();
+            if !hidden {
+                show_window(app.handle());
+            }
             if let Err(e) = build_tray(app.handle()) {
                 eprintln!("no tray icon: {e}"); // the app works without one, only closing quits
             }
@@ -439,9 +451,13 @@ mod tests {
     fn mox_links() {
         let one = "mox://add?url=https%3A%2F%2Fdl.example%2Fa.mkv%3Fmd5%3Dx%26expires%3D1";
         assert_eq!(links_in(one), ["https://dl.example/a.mkv?md5=x&expires=1"]);
-        let two = "mox://add?url=https%3A%2F%2Fa.example%2F1.zip&url=https%3A%2F%2Fa.example%2F2.zip";
+        let two =
+            "mox://add?url=https%3A%2F%2Fa.example%2F1.zip&url=https%3A%2F%2Fa.example%2F2.zip";
         assert_eq!(links_in(two).len(), 2);
-        assert_eq!(links_in("mox:https://a.example/x.iso"), ["https://a.example/x.iso"]);
+        assert_eq!(
+            links_in("mox:https://a.example/x.iso"),
+            ["https://a.example/x.iso"]
+        );
         // Anything else a page might put in a mox:// link is not a download.
         assert!(links_in("mox://add?url=file%3A%2F%2F%2Fetc%2Fpasswd").is_empty());
         assert!(links_in("mox://add?url=javascript%3Aalert(1)").is_empty());

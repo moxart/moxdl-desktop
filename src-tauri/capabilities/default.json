@@ -9,6 +9,7 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "clipboard-manager:allow-read-text"
+    "clipboard-manager:allow-read-text",
+    "autostart:default"
   ]
 }
