@@ -6,7 +6,7 @@ import { Spinner } from "./Spinner";
 export const Logo = ({ busy }: { busy: boolean }) => (
   <div className="flex items-center gap-2">
     <img src={pomegranate} alt="" className="size-7" draggable={false} />
-    <span className="font-mono text-lg font-semibold tracking-tight">Mox</span>
+    <span className="text-xl font-extrabold tracking-tight">Mox</span>
     {busy && <Spinner className="w-3 font-mono text-accent" />}
   </div>
 );

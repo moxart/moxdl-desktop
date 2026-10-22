@@ -101,7 +101,7 @@ export const DownloadRow = (props: DownloadRowProps) => {
 
       <div className="min-w-0">
         <div className="flex items-baseline gap-3">
-          <span className={cn("truncate font-medium", d.status === "done" && "text-muted")}>{d.name}</span>
+          <span className={cn("truncate font-semibold", d.status === "done" && "text-muted")}>{d.name}</span>
           {focused && <span className="shrink-0 rounded-full bg-accent/15 px-2 text-xs text-accent">full speed</span>}
           {d.stream && !finished && <span className="shrink-0 rounded-full bg-raised px-2 text-xs text-muted">watch</span>}
         </div>

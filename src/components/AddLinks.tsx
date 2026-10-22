@@ -125,8 +125,9 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
             disabled={!links}
             onClick={add}
             className={cn(
-              "rounded-control px-4 py-2 font-medium transition-transform active:scale-95",
-              links ? "bg-accent text-on-accent hover:bg-accent-strong" : "bg-raised text-faint",
+              "rounded-control px-4 py-2 font-semibold",
+              // With no link yet it waits quietly in grey rather than as a faded red one.
+              links ? "button-primary" : "bg-raised text-faint",
             )}
           >
             Download{links > 1 ? ` ${links}` : ""}

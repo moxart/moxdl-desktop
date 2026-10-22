@@ -11,39 +11,50 @@
   color-scheme: dark;
 }
 @theme {
-  /* Surfaces, from the window background up to things that sit on top. */
-  --color-bg: #121316;
-  --color-surface: #191b1f;
-  --color-raised: #22252a;
-  --color-hover: #2a2d33;
-  --color-line: #2c3036;
+  /*
+   * Pomegranate, the app's icon: the seeds' deep crimson for what is alive (progress, selection,
+   * buttons), the crown's gold for warnings. Errors are coral, so the two are never mistaken.
+   * A lighter, pinker crimson (#f0607a) looked like candy rather than the fruit.
+   * Every text color here reads at WCAG AA (4.5:1) or better on the background.
+   */
+
+  /* Surfaces, from the window background up to things that sit on top: dark, with a little
+     of the fruit's red in them, so the crimson sits on them naturally. */
+  --color-bg: #141113;
+  --color-surface: #1c1719;
+  --color-raised: #251f21;
+  --color-hover: #2e2629;
+  --color-line: #352c2f;
 
   /* Text. */
-  --color-text: #e7e4df;
-  --color-muted: #9a9ca3;
-  --color-faint: #62666d;
+  --color-text: #ede6e3;
+  --color-muted: #a59c9e;
+  --color-faint: #8a7f82;
 
-  /* mox copper, the color of the progress bar in the terminal. */
-  --color-accent: #d7875f;
-  --color-accent-strong: #d75f00;
-  --color-on-accent: #1b120b;
+  /* The seeds: for progress, icons, selection and links on the dark background. */
+  --color-accent: #e54852;
+
+  /* Crimson for text on a wash of crimson, as the soft buttons have: lighter than the accent so
+     it reads at 5:1 or better on that wash, at rest and on hover. */
+  --color-accent-text: #f27a83;
+  --color-accent-text-hover: #f58a92;
 
   /* What a status means. */
-  --color-ok: #7fb685;
-  --color-warn: #e0b354;
-  --color-danger: #e06c75;
+  --color-ok: #7dbe8a;
+  --color-warn: #e2b062; /* the crown's gold */
+  --color-danger: #ff7a59; /* coral, apart from the crimson of the brand */
 
-  /* The piece map: nothing, some, most and all of a cell on disk. */
-  --color-piece-0: #2a2d33;
-  --color-piece-1: #5b3a25;
-  --color-piece-2: #a85b2a;
-  --color-piece-3: #d7875f;
+  /* The piece map, as seeds: none, some, most and all of a cell on disk, ripening to crimson. */
+  --color-piece-0: #2b2326;
+  --color-piece-1: #571b23;
+  --color-piece-2: #9e2733;
+  --color-piece-3: #e54852;
 
   /* Corners. */
   --radius-card: 12px;
   --radius-control: 8px;
 
-  /* Type. */
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  /* Type: Manrope, with Vazirmatn taking over for Persian letters, both bundled. */
+  --font-sans: "Manrope Variable", "Vazirmatn Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", monospace;
 }

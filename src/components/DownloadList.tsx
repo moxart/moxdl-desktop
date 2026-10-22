@@ -34,7 +34,7 @@ const EmptyList = ({ onAdd }: { onAdd: () => void }) => (
       <button
         type="button"
         onClick={onAdd}
-        className="mt-4 inline-flex items-center gap-2 rounded-control bg-accent px-4 py-2 font-medium text-on-accent transition-transform hover:bg-accent-strong active:scale-95"
+        className="mt-4 inline-flex items-center gap-2 rounded-control button-primary px-4 py-2 font-semibold"
       >
         <Plus className="size-4" /> Add links
       </button>

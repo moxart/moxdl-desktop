@@ -29,7 +29,7 @@ const TABS: [Tab, string][] = [
 const EngineProblem = ({ engine }: { engine: Engine }) => (
   <div className="grid h-full place-items-center p-8">
     <div className="max-w-md text-center">
-      <p className="font-medium">{engine.connection === "missing" ? "Mox could not be started" : "Mox stopped"}</p>
+      <p className="font-semibold">{engine.connection === "missing" ? "Mox could not be started" : "Mox stopped"}</p>
       <p className="mt-2 text-sm text-muted">
         {engine.problem ||
           "The download engine exited. Downloads keep their progress and continue when it starts again."}
@@ -115,7 +115,7 @@ export const App = () => {
           type="button"
           onClick={openAdd}
           disabled={down}
-          className="inline-flex items-center gap-2 rounded-control bg-accent px-3.5 py-1.5 text-sm font-medium text-on-accent transition-transform hover:bg-accent-strong active:scale-95 disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-control button-primary px-3.5 py-1.5 text-sm font-semibold"
         >
           <Plus className="size-4" /> Add links
         </button>

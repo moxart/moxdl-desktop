@@ -10,6 +10,7 @@ body,
 body {
   @apply bg-bg text-text font-sans antialiased;
   font-size: 14px;
+  font-weight: 500; /* a step heavier than the usual 400: Manrope reads better there on dark */
   /* An app, not a page: no rubber-band scrolling or text selection on the chrome. */
   overscroll-behavior: none;
   user-select: none;
@@ -32,4 +33,36 @@ textarea {
   @apply bg-raised rounded-full;
   border: 3px solid transparent;
   background-clip: padding-box;
+}
+
+/*
+ * The main button: soft, a pale wash of the crimson with crimson text and a hairline edge. Flat,
+ * as buttons are now; an earlier glossy one, with a gradient and a sheen, looked dated.
+ */
+.button-primary {
+  color: var(--color-accent-text);
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 35%, transparent);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease,
+    transform 120ms ease;
+}
+.button-primary:hover:not(:disabled) {
+  color: var(--color-accent-text-hover);
+  background: color-mix(in oklab, var(--color-accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 50%, transparent);
+}
+.button-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.button-primary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .button-primary {
+    transition: none;
+  }
 }

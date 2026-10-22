@@ -6,7 +6,7 @@ export const DropOverlay = () => (
     <div className="grid h-full w-full place-items-center rounded-card border-2 border-dashed border-accent/60">
       <div className="text-center">
         <Download className="mx-auto size-8 text-accent" />
-        <p className="mt-3 font-medium">Drop links to download them</p>
+        <p className="mt-3 font-semibold">Drop links to download them</p>
       </div>
     </div>
   </div>

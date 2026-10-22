@@ -60,7 +60,7 @@ export const Details = ({ download: d, send, onClose }: DetailsProps) => {
     <aside className="flex w-96 shrink-0 flex-col overflow-y-auto border-l border-line bg-surface">
       <div className="flex items-start gap-3 border-b border-line p-4">
         <div className="min-w-0 flex-1">
-          <h2 className="break-all font-medium leading-snug">{d.name}</h2>
+          <h2 className="break-all font-semibold leading-snug">{d.name}</h2>
           <p className={cn("mt-1 text-xs", d.status === "error" ? "text-danger" : "text-muted")}>
             {d.status === "error" ? d.message : STATUS[d.status]}
             {d.total && d.status !== "done" ? ` · ${percent(d.done, d.total)}` : ""}

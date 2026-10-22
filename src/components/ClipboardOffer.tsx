@@ -20,12 +20,12 @@ export const ClipboardOffer = ({ urls, onTake, onDismiss }: ClipboardOfferProps)
     <ClipboardPaste className="size-4 shrink-0 text-accent" />
     <span className="min-w-0 truncate">
       {urls.length === 1 ? "A link is copied: " : `${urls.length} links are copied, starting with `}
-      <span className="font-medium">{nameOf(urls[0])}</span>
+      <span className="font-semibold">{nameOf(urls[0])}</span>
     </span>
     <button
       type="button"
       onClick={onTake}
-      className="ml-auto shrink-0 rounded-control bg-accent px-3 py-1 font-medium text-on-accent transition-transform hover:bg-accent-strong active:scale-95"
+      className="ml-auto shrink-0 rounded-control button-primary px-3 py-1 font-semibold"
     >
       Download
     </button>
