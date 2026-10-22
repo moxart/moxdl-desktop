@@ -1,18 +1,27 @@
 {
   "manifest_version": 3,
   "name": "Download with Mox",
-  "version": "0.1.0",
-  "description": "Send links to the Mox desktop app from the right-click menu.",
+  "version": "0.2.0",
+  "description": "Downloads go to the Mox desktop app, and links from the right-click menu too.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
+  "action": {
+    "default_title": "Mox takes over downloads. Click to let the browser keep them",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
   "permissions": [
     "contextMenus",
     "activeTab",
-    "scripting"
+    "scripting",
+    "downloads",
+    "storage"
   ],
   "background": {
     "service_worker": "background.js",

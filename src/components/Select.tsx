@@ -17,7 +17,7 @@ export const Select = ({ value, options, onChange, label, className }: SelectPro
       value={value}
       aria-label={label}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full cursor-pointer appearance-none rounded-control border border-line bg-bg py-1.5 pl-3 pr-8 text-sm text-text outline-none transition-colors hover:border-faint focus:border-accent"
+      className="w-full cursor-pointer appearance-none rounded-control border border-line bg-bg py-1.5 ps-3 pe-8 text-sm text-text outline-none transition-colors hover:border-faint focus:border-accent"
     >
       {options.map(([text, v]) => (
         <option key={v} value={v} className="bg-raised text-text">
@@ -25,6 +25,6 @@ export const Select = ({ value, options, onChange, label, className }: SelectPro
         </option>
       ))}
     </select>
-    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+    <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
   </div>
 );

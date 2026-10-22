@@ -3,28 +3,34 @@
 //! the UI as an "engine" event. The protocol is documented on `Engine` in mox.py.
 //!
 //! It also reads those events itself, for what has to work with the window closed: the icon by
-//! the clock, with the speed and pause/resume for everything, and a notification per download.
+//! the clock, with the speed and pause/resume for everything, a notification per download, and
+//! what to do once everything has downloaded (quit, sleep or shut down).
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_updater::UpdaterExt;
 
 /// How long quitting waits for mox to save the progress of every download.
 const QUIT_GRACE: Duration = Duration::from_secs(8);
 /// How often the speed in the tray menu changes. Rebuilding the menu four times a second, as
 /// often as the engine reports, is wasted work on Linux.
 const TRAY_EVERY: Duration = Duration::from_secs(2);
+/// How long the window counts down before quitting, sleeping or shutting down once everything
+/// has downloaded, so someone at the computer can stop it.
+const COUNTDOWN: Duration = Duration::from_secs(60);
 
 struct Engine {
     child: Mutex<Option<Child>>,
@@ -37,7 +43,37 @@ struct Engine {
 
 struct Tray {
     status: MenuItem<Wry>,
+    show: MenuItem<Wry>,
+    pause: MenuItem<Wry>,
+    resume: MenuItem<Wry>,
+    quit: MenuItem<Wry>,
 }
+
+/// What to do once every download has finished, chosen in the status bar. It is not kept between
+/// runs, and it goes back to nothing once done or cancelled: a shutdown asked for last night must
+/// not surprise anyone tomorrow.
+#[derive(Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum WhenDone {
+    Nothing,
+    Quit,
+    Sleep,
+    Shutdown,
+}
+
+struct Finish {
+    action: Mutex<WhenDone>,
+    /// Something was downloading or waiting at the last state.
+    was_busy: AtomicBool,
+    /// A download finished since the last state with something busy. Without it, pausing
+    /// everything would look like the end of the queue and shut the computer down.
+    just_finished: AtomicBool,
+    /// Bumped to call off a countdown that is running.
+    countdown: AtomicU64,
+}
+
+/// The language the window speaks, "en" or "fa", for the tray and the notifications.
+struct Lang(Mutex<String>);
 
 /// Links that came in from outside (a mox:// link, from the browser extension or a web page)
 /// and wait for the window to pick them up. The window shows them in the add dialog rather
@@ -130,7 +166,13 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
                             tray_changed = Instant::now();
                         }
                     }
-                    Some("finished") => notify_finished(&events, &event),
+                    Some("finished") => {
+                        events
+                            .state::<Finish>()
+                            .just_finished
+                            .store(true, Ordering::Relaxed);
+                        notify_finished(&events, &event);
+                    }
                     _ => {}
                 }
             }
@@ -140,7 +182,12 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
             .state::<Engine>()
             .busy
             .store(false, Ordering::Relaxed);
-        set_tray_status(&events, "Mox stopped");
+        let stopped = if persian(&events) {
+            "Mox متوقف شد"
+        } else {
+            "Mox stopped"
+        };
+        set_tray_status(&events, stopped);
         let _ = events.emit("engine-exit", ());
     });
     let logs = app.clone();
@@ -162,18 +209,252 @@ fn follow_state(app: &AppHandle, state: &Value) -> String {
         .filter(|d| ["connecting", "downloading", "verifying"].contains(&status(d).as_str()))
         .count();
     let waiting = downloads.iter().filter(|d| status(d) == "waiting").count();
-    app.state::<Engine>()
-        .busy
-        .store(running + waiting > 0, Ordering::Relaxed);
+    let busy = running + waiting > 0;
+    app.state::<Engine>().busy.store(busy, Ordering::Relaxed);
+    follow_finish(app, busy);
+    let fa = persian(app);
     if running == 0 {
-        return if waiting > 0 {
-            format!("{waiting} waiting")
-        } else {
-            "Nothing downloading".into()
+        return match (waiting > 0, fa) {
+            (true, false) => format!("{waiting} waiting"),
+            (true, true) => digits(&format!("{waiting} در صف")),
+            (false, false) => "Nothing downloading".into(),
+            (false, true) => "دانلودی در کار نیست".into(),
         };
     }
-    let speed = state["speed"].as_f64().unwrap_or(0.0);
-    format!("{}/s · {running} downloading", human_size(speed))
+    let speed = human_size(state["speed"].as_f64().unwrap_or(0.0));
+    if fa {
+        digits(&format!("{speed}/s · {running} در حال دانلود"))
+    } else {
+        format!("{speed}/s · {running} downloading")
+    }
+}
+
+/// Start the countdown when the queue has just run dry because the last download finished.
+/// mox reports a download's end before the state that shows the queue empty.
+fn follow_finish(app: &AppHandle, busy: bool) {
+    let finish = app.state::<Finish>();
+    if busy {
+        finish.was_busy.store(true, Ordering::Relaxed);
+        finish.just_finished.store(false, Ordering::Relaxed);
+        return;
+    }
+    let ran_dry = finish.was_busy.swap(false, Ordering::Relaxed)
+        && finish.just_finished.swap(false, Ordering::Relaxed);
+    let action = *finish.action.lock().unwrap();
+    if ran_dry && action != WhenDone::Nothing {
+        start_countdown(app, action);
+    }
+}
+
+fn start_countdown(app: &AppHandle, action: WhenDone) {
+    let generation = app
+        .state::<Finish>()
+        .countdown
+        .fetch_add(1, Ordering::SeqCst)
+        + 1;
+    show_window(app);
+    let _ = app.emit(
+        "when-done",
+        json!({ "action": action, "seconds": COUNTDOWN.as_secs() }),
+    );
+    let fa = persian(app);
+    let title = match (action, fa) {
+        (WhenDone::Quit, false) => "Mox quits in a minute",
+        (WhenDone::Sleep, false) => "The computer sleeps in a minute",
+        (_, false) => "The computer shuts down in a minute",
+        (WhenDone::Quit, true) => "Mox تا یک دقیقهٔ دیگر بسته می‌شود",
+        (WhenDone::Sleep, true) => "کامپیوتر تا یک دقیقهٔ دیگر به خواب می‌رود",
+        (_, true) => "کامپیوتر تا یک دقیقهٔ دیگر خاموش می‌شود",
+    };
+    let body = if fa {
+        "همهٔ دانلودها تمام شد. از پنجرهٔ Mox می‌شود لغوش کرد."
+    } else {
+        "Everything has downloaded. Mox's window can cancel it."
+    };
+    let _ = app.notification().builder().title(title).body(body).show();
+    let app = app.clone();
+    thread::spawn(move || {
+        let deadline = Instant::now() + COUNTDOWN;
+        while Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(250));
+            if app.state::<Finish>().countdown.load(Ordering::SeqCst) != generation {
+                return; // cancelled, or done at once
+            }
+        }
+        carry_out(&app, action);
+    });
+}
+
+/// Quit, sleep or shut down, and forget the choice.
+fn carry_out(app: &AppHandle, action: WhenDone) {
+    *app.state::<Finish>().action.lock().unwrap() = WhenDone::Nothing;
+    let _ = app.emit("when-done", Value::Null);
+    let result = match action {
+        WhenDone::Nothing => Ok(()),
+        WhenDone::Quit => {
+            quit(app);
+            Ok(())
+        }
+        WhenDone::Sleep => power(action),
+        WhenDone::Shutdown => {
+            // Saved first: the engine keeps every download's progress on its way out.
+            stop_engine(app);
+            let result = power(action);
+            if result.is_err() {
+                let _ = start_engine(app);
+            }
+            result
+        }
+    };
+    if let Err(message) = result {
+        let _ = app.emit("engine-log", format!("! {message}"));
+    }
+}
+
+/// Ask the system to sleep or shut down, the way a user without admin rights may.
+fn power(action: WhenDone) -> Result<(), String> {
+    let sleep = action == WhenDone::Sleep;
+    let (program, args): (&str, &[&str]) = if cfg!(windows) {
+        if sleep {
+            // Sleeps, or hibernates where hibernation is on: Windows has no plainer way.
+            ("rundll32.exe", &["powrprof.dll,SetSuspendState", "0,1,0"])
+        } else {
+            ("shutdown", &["/s", "/t", "0"])
+        }
+    } else if cfg!(target_os = "macos") {
+        if sleep {
+            ("pmset", &["sleepnow"])
+        } else {
+            (
+                "osascript",
+                &["-e", "tell application \"System Events\" to shut down"],
+            )
+        }
+    } else if sleep {
+        ("systemctl", &["suspend"])
+    } else {
+        ("systemctl", &["poweroff"])
+    };
+    match Command::new(program).args(args).status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => Err(format!("{program} {} failed ({status})", args.join(" "))),
+        Err(e) => Err(format!("could not run {program}: {e}")),
+    }
+}
+
+#[tauri::command]
+fn set_when_done(action: WhenDone, app: AppHandle) {
+    *app.state::<Finish>().action.lock().unwrap() = action;
+}
+
+/// Call off the countdown, and the choice with it.
+#[tauri::command]
+fn cancel_when_done(app: AppHandle) {
+    let finish = app.state::<Finish>();
+    finish.countdown.fetch_add(1, Ordering::SeqCst);
+    *finish.action.lock().unwrap() = WhenDone::Nothing;
+    let _ = app.emit("when-done", Value::Null);
+}
+
+/// Do it now rather than at the end of the countdown.
+#[tauri::command]
+fn when_done_now(app: AppHandle) {
+    let finish = app.state::<Finish>();
+    finish.countdown.fetch_add(1, Ordering::SeqCst);
+    let action = *finish.action.lock().unwrap();
+    let app = app.clone();
+    thread::spawn(move || carry_out(&app, action));
+}
+
+fn persian(app: &AppHandle) -> bool {
+    app.state::<Lang>().0.lock().unwrap().as_str() == "fa"
+}
+
+/// Persian digits, as the window shows them in Persian.
+fn digits(text: &str) -> String {
+    text.chars()
+        .map(|c| match c {
+            '0'..='9' => char::from_u32('۰' as u32 + (c as u32 - '0' as u32)).unwrap_or(c),
+            '.' => '٫',
+            _ => c,
+        })
+        .collect()
+}
+
+/// The window's language, for the tray menu and the notifications.
+#[tauri::command]
+fn set_language(lang: String, app: AppHandle) {
+    let fa = lang == "fa";
+    *app.state::<Lang>().0.lock().unwrap() = lang;
+    if let Some(tray) = app.try_state::<Tray>() {
+        let texts = if fa {
+            ["نمایش Mox", "توقف همه", "ادامهٔ همه", "خروج"]
+        } else {
+            ["Show Mox", "Pause all", "Resume all", "Quit"]
+        };
+        for (item, text) in [&tray.show, &tray.pause, &tray.resume, &tray.quit]
+            .into_iter()
+            .zip(texts)
+        {
+            let _ = item.set_text(text);
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct UpdateInfo {
+    version: String,
+    notes: Option<String>,
+}
+
+/// A newer version of the app, if the release page has one.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
+    let update = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(update.map(|u| UpdateInfo {
+        version: u.version,
+        notes: u.body,
+    }))
+}
+
+/// Download the update, check its signature, install it and start the new version. Progress
+/// goes out as "update-progress" events of [received, total].
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    let update = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Mox is up to date")?;
+    let mut received = 0u64;
+    let bytes = update
+        .download(
+            |chunk, total| {
+                received += chunk as u64;
+                let _ = app.emit("update-progress", (received, total));
+            },
+            || {},
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    // The engine sits next to the app, and the installer replaces it: stopping it first frees
+    // the file, and saves every download's progress for the new version to carry on.
+    let engine = app.clone();
+    tauri::async_runtime::spawn_blocking(move || stop_engine(&engine))
+        .await
+        .map_err(|e| e.to_string())?;
+    if let Err(e) = update.install(bytes) {
+        let _ = start_engine(&app); // installing was refused, say at the password prompt
+        return Err(e.to_string());
+    }
+    app.restart();
 }
 
 /// The same units as mox prints.
@@ -208,12 +489,27 @@ fn notify_finished(app: &AppHandle, event: &Value) {
     if watching {
         return;
     }
+    let fa = persian(app);
     let name = event["name"].as_str().unwrap_or("A download");
     let (title, body) = if event["status"] == "done" {
-        ("Download finished".to_owned(), name.to_owned())
+        (
+            if fa {
+                "دانلود تمام شد"
+            } else {
+                "Download finished"
+            },
+            name.to_owned(),
+        )
     } else {
         let message = event["message"].as_str().unwrap_or("");
-        ("Download failed".to_owned(), format!("{name}: {message}"))
+        (
+            if fa {
+                "دانلود ناموفق بود"
+            } else {
+                "Download failed"
+            },
+            format!("{name}: {message}"),
+        )
     };
     let _ = app.notification().builder().title(title).body(body).show();
 }
@@ -346,7 +642,13 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         _ => {}
     })
     .build(app)?;
-    app.manage(Tray { status });
+    app.manage(Tray {
+        status,
+        show,
+        pause,
+        resume,
+        quit: quit_item,
+    });
     Ok(())
 }
 
@@ -365,6 +667,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Started at login, it starts with --hidden: in the tray, where it carries on with what
         // was left unfinished, rather than as a window in the way.
         .plugin(tauri_plugin_autostart::init(
@@ -378,10 +681,23 @@ pub fn run() {
             told_hidden: AtomicBool::new(false),
         })
         .manage(Incoming(Mutex::new(Vec::new())))
+        .manage(Finish {
+            action: Mutex::new(WhenDone::Nothing),
+            was_busy: AtomicBool::new(false),
+            just_finished: AtomicBool::new(false),
+            countdown: AtomicU64::new(0),
+        })
+        .manage(Lang(Mutex::new("en".into())))
         .invoke_handler(tauri::generate_handler![
             engine_send,
             restart_engine,
-            incoming_links
+            incoming_links,
+            set_when_done,
+            cancel_when_done,
+            when_done_now,
+            set_language,
+            check_update,
+            install_update
         ])
         .setup(|app| {
             // Installed apps register mox:// through their desktop file; a development build
@@ -422,12 +738,18 @@ pub fn run() {
                 if engine.busy.load(Ordering::Relaxed) && app.try_state::<Tray>().is_some() {
                     let _ = window.hide();
                     if !engine.told_hidden.swap(true, Ordering::Relaxed) {
-                        let _ = app
-                            .notification()
-                            .builder()
-                            .title("Mox is still downloading")
-                            .body("Its icon by the clock shows the speed, and quits it.")
-                            .show();
+                        let (title, body) = if persian(app) {
+                            (
+                                "Mox هنوز دانلود می‌کند",
+                                "آیکونش کنار ساعت سرعت را نشان می‌دهد و از آنجا بسته می‌شود.",
+                            )
+                        } else {
+                            (
+                                "Mox is still downloading",
+                                "Its icon by the clock shows the speed, and quits it.",
+                            )
+                        };
+                        let _ = app.notification().builder().title(title).body(body).show();
                     }
                 } else {
                     quit(app);
@@ -445,7 +767,12 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::links_in;
+    use super::{digits, links_in};
+
+    #[test]
+    fn persian_digits() {
+        assert_eq!(digits("1.5 MB/s · 3"), "۱٫۵ MB/s · ۳");
+    }
 
     #[test]
     fn mox_links() {

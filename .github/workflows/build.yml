@@ -1,7 +1,10 @@
 # Installers for Linux, Windows and macOS, each with mox built in for that system.
 #
 # Run by hand (Actions → build → Run workflow) for files to try, kept as the run's artifacts.
-# Pushing a tag like v0.3.0 also puts them in a pre-release of that name.
+# Pushing a tag like v0.4.0 also puts them in a release of that name, with latest.json, which
+# the installed apps read to find the update. With the repository secrets
+# TAURI_SIGNING_PRIVATE_KEY and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, each installer is signed for
+# the updater; the app takes no update whose signature its built-in public key does not match.
 name: build
 
 on:
@@ -59,10 +62,28 @@ jobs:
         run: scripts/build-engine.sh moxdl/mox.py
       - name: Installers
         shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        # Signed for the updater when the key is there. Without it the installers work the same,
+        # only an app installed from them is not offered updates by these.
         # Once more on failure: hdiutil on GitHub's Macs sometimes says "Resource busy" making the .dmg.
         run: |
-          build() { npx tauri build --config src-tauri/tauri.release.conf.json --bundles ${{ matrix.bundles }}; }
+          configs="--config src-tauri/tauri.release.conf.json"
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && configs="$configs --config src-tauri/tauri.updater.conf.json"
+          build() { npx tauri build $configs --bundles ${{ matrix.bundles }}; }
           build || { sleep 20; build; }
+      - name: The macOS update, named for its processor
+        if: runner.os == 'macOS'
+        shell: bash
+        # Both Macs make a Mox.app.tar.gz; one release cannot hold two files of one name.
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          version=$(node -p "require('../../../../tauri.conf.json').version")
+          arch=$([ "$(uname -m)" = arm64 ] && echo aarch64 || echo x64)
+          for f in Mox.app.tar.gz Mox.app.tar.gz.sig; do
+            if [ -e "$f" ]; then mv "$f" "${f/Mox/Mox_${version}_${arch}}"; fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: mox-${{ matrix.os }}
@@ -72,6 +93,8 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/release/bundle/*/*.sig
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -84,14 +107,44 @@ jobs:
         with:
           path: files
           merge-multiple: true
-      - name: Pre-release with every installer
+      - name: Release with every installer
         env:
           GH_TOKEN: ${{ github.token }}
+        # A full release rather than a pre-release, though the app is still a test version: the
+        # apps look for latest.json in the latest release, and GitHub's "latest" skips pre-releases.
         run: |
           # Each artifact keeps its bundle/<kind>/ folder, so bring the installers up to one level.
           find files -mindepth 2 -type f -exec mv {} files/ \;
           find files -mindepth 1 -type d -delete
           cd files
+          python3 - "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" <<'EOF'
+          import datetime, json, os, sys
+
+          tag, repo = sys.argv[1:]
+          base = f"https://github.com/{repo}/releases/download/{tag}/"
+          # The updater looks for {os}-{arch}-{how it was installed}, then for {os}-{arch}.
+          endings = {
+              "linux-x86_64-appimage": "_amd64.AppImage",
+              "linux-x86_64-deb": "_amd64.deb",
+              "windows-x86_64-nsis": "_x64-setup.exe",
+              "darwin-aarch64-app": "_aarch64.app.tar.gz",
+              "darwin-x86_64-app": "_x64.app.tar.gz",
+          }
+          platforms = {}
+          for target, ending in endings.items():
+              for name in os.listdir("."):
+                  if name.endswith(ending) and os.path.exists(name + ".sig"):
+                      platforms[target] = {"url": base + name, "signature": open(name + ".sig").read().strip()}
+          for target in list(platforms):
+              platforms.setdefault(target.rsplit("-", 1)[0], platforms[target])
+          if platforms:  # none without the signing key: then the apps simply find no update
+              json.dump({
+                  "version": tag.lstrip("v"),
+                  "notes": f"https://github.com/{repo}/releases/tag/{tag}",
+                  "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "platforms": platforms,
+              }, open("latest.json", "w"), indent=2)
+          EOF
           sha256sum * > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease \
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest \
             --title "Mox desktop ${GITHUB_REF_NAME#v} (test version)" --generate-notes ./*

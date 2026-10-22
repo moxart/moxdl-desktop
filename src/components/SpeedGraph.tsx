@@ -19,7 +19,8 @@ export const SpeedGraph = ({ speed, width: WIDTH = 96, height: HEIGHT = 18 }: { 
   const start = (SECONDS - points.length) * step; // the newest point always sits at the right
   const line = points.map((v, i) => `${(start + i * step).toFixed(1)},${(HEIGHT - 1 - (v / top) * (HEIGHT - 2)).toFixed(1)}`);
   return (
-    <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden className="shrink-0">
+    // In Persian, time runs right to left like the text: the newest point sits at the left.
+    <svg width={WIDTH} height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden className="shrink-0 rtl:-scale-x-100">
       <polyline points={`${start},${HEIGHT} ${line.join(" ")} ${WIDTH},${HEIGHT}`} className="fill-accent/15 stroke-none" />
       <polyline points={line.join(" ")} className="fill-none stroke-accent" strokeWidth={1.25} strokeLinejoin="round" />
     </svg>

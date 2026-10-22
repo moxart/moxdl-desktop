@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { messages } from "../lib/i18n";
 import { startDemo } from "./demo";
 import type { Command, Config, EngineEvent, EngineState, History } from "./types";
 
@@ -64,7 +65,7 @@ export const useEngine = () => {
           setState(event);
           break;
         case "finished":
-          if (event.status === "done") toast(`Downloaded ${event.name}`, "ok");
+          if (event.status === "done") toast(messages().downloaded(event.name), "ok");
           else toast(`${event.name}: ${event.message}`, "error");
           break;
         case "notice":

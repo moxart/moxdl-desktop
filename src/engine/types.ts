@@ -78,7 +78,7 @@ export type EngineEvent =
   | { type: "error"; text: string };
 
 export type Command =
-  | { cmd: "add"; text?: string; urls?: string[]; dir?: string; sort?: boolean; stream?: boolean }
+  | { cmd: "add"; text?: string; urls?: string[]; dir?: string; sort?: boolean; stream?: boolean; first?: boolean }
   | { cmd: "hold"; id: number; on: boolean }
   | { cmd: "hold_all"; on: boolean }
   | { cmd: "next"; id: number }

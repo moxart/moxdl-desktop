@@ -56,5 +56,38 @@
 
   /* Type: Manrope, with Vazirmatn taking over for Persian letters, both bundled. */
   --font-sans: "Manrope Variable", "Vazirmatn Variable", system-ui, sans-serif;
+  --font-brand: "Yeseva One", Georgia, serif; /* the logo's three letters */
   --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", monospace;
+}
+
+/*
+ * The light theme (Settings → Theme): the same pomegranate on a warm paper white. The crimson is
+ * deeper here, as light text colors would fade on white; every text color still reads at AA.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #f8f4f2;
+  --color-surface: #fffdfc;
+  --color-raised: #efe8e5;
+  --color-hover: #e7dedb;
+  --color-line: #e3d9d6;
+
+  --color-text: #21191b;
+  --color-muted: #665a5d;
+  --color-faint: #74676a;
+
+  --color-accent: #c42e3b;
+  --color-accent-text: #b02633;
+  --color-accent-text-hover: #961c28;
+
+  --color-ok: #2e7a45;
+  --color-warn: #8f6312;
+  --color-danger: #c2410c;
+
+  /* Seeds ripening on white: pale blush to the crimson. */
+  --color-piece-0: #ebe1de;
+  --color-piece-1: #efbcc0;
+  --color-piece-2: #db6d77;
+  --color-piece-3: #c42e3b;
 }

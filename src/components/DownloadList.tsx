@@ -2,6 +2,7 @@ import { Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Command, Download, EngineState } from "../engine/types";
+import { type Messages, useT } from "../lib/i18n";
 import { Details } from "./Details";
 import { DownloadRow } from "./DownloadRow";
 
@@ -13,34 +14,37 @@ type DownloadListProps = {
 
 // The keys, as close to the terminal's as a window allows. Shown in the empty list and as the
 // search box's hint.
-const KEYS: [string, string][] = [
-  ["↑ ↓", "select"],
-  ["Enter", "download next"],
-  ["Shift ↑ ↓", "move"],
-  ["F", "only this"],
-  ["W", "watch while downloading"],
-  ["P / Space", "pause"],
-  ["O", "open"],
-  ["I", "details"],
-  ["Delete twice", "remove"],
-  ["/", "search"],
+const keys = (t: Messages): [string, string][] => [
+  ["↑ ↓", t.keys.select],
+  ["Enter", t.keys.next],
+  ["Shift ↑ ↓", t.keys.move],
+  ["F", t.keys.only],
+  ["W", t.keys.watch],
+  ["P / Space", t.keys.pause],
+  ["O", t.keys.open],
+  ["I", t.keys.details],
+  [t.keyNames.deleteTwice, t.keys.remove],
+  ["/", t.keys.search],
 ];
 
-const EmptyList = ({ onAdd }: { onAdd: () => void }) => (
-  <div className="grid min-h-0 flex-1 place-items-center">
-    <div className="text-center">
-      <p className="text-muted">Nothing downloading.</p>
-      <p className="mt-1 text-sm text-faint">Copy some links and press Ctrl+V here, drop them on the window, or</p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mt-4 inline-flex items-center gap-2 rounded-control button-primary px-4 py-2 font-semibold"
-      >
-        <Plus className="size-4" /> Add links
-      </button>
+const EmptyList = ({ onAdd }: { onAdd: () => void }) => {
+  const t = useT();
+  return (
+    <div className="grid min-h-0 flex-1 place-items-center">
+      <div className="text-center">
+        <p className="text-muted">{t.nothingDownloading}</p>
+        <p className="mt-1 text-sm text-faint">{t.emptyHint}</p>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="mt-4 inline-flex items-center gap-2 rounded-control button-primary px-4 py-2 font-semibold"
+        >
+          <Plus className="size-4" /> {t.addLinks}
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement && !!target.closest("input, textarea, select, [contenteditable]");
@@ -48,6 +52,7 @@ const typing = (target: EventTarget | null) =>
 const finished = (d: Download) => d.status === "done" || d.status === "error";
 
 export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
+  const t = useT();
   const [dragged, setDragged] = useState<number | null>(null);
   const [target, setTarget] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -151,15 +156,15 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
             ref={search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search downloads"
-            title={KEYS.map(([key, does]) => `${key}: ${does}`).join("\n")}
+            placeholder={t.searchDownloads}
+            title={keys(t).map(([key, does]) => `${key}: ${does}`).join("\n")}
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              aria-label="Clear the search"
+              aria-label={t.clearSearch}
               className="text-faint hover:text-text"
             >
               <X className="size-4" />
@@ -168,7 +173,7 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
             <kbd className="rounded border border-line px-1.5 font-mono text-xs text-faint">/</kbd>
           )}
         </label>
-        {shown.length === 0 && <p className="px-3 py-6 text-sm text-muted">No download has “{query}” in its name.</p>}
+        {shown.length === 0 && <p className="px-3 py-6 text-sm text-muted">{t.noMatch(query)}</p>}
         <ul className="flex flex-col gap-1">
           {shown.map((d) => (
             <DownloadRow

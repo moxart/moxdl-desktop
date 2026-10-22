@@ -1,22 +1,28 @@
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import type { Quota, Schedule } from "../App";
 import type { Engine } from "../engine/useEngine";
+import type { Updates } from "../engine/useUpdates";
+import { type LangChoice, setLanguage, useLanguageChoice, useT } from "../lib/i18n";
+import { type ThemeChoice, setTheme, useThemeChoice } from "../lib/theme";
 import { Select } from "./Select";
 
 // Settings are mox's own (mox config), shared with the terminal: changing one here changes it there.
 const SWITCHES = new Set(["sort", "stream", "notify", "sound", "history"]);
 const ON = ["on", "yes", "true", "1"];
+const IN_APP = "__TAURI_INTERNALS__" in window;
 
 const Field = ({ name, value, onSave }: { name: string; value: string; onSave: (value: string | null) => void }) => {
+  const t = useT();
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const save = () => draft.trim() !== value && onSave(draft.trim() || null);
   return (
     <input
       value={draft}
-      placeholder="default"
+      placeholder={t.default}
+      dir="auto"
       onChange={(e) => setDraft(e.target.value)}
       onBlur={save}
       onKeyDown={(e) => e.key === "Enter" && save()}
@@ -34,60 +40,76 @@ type SettingsViewProps = {
   onSchedule: (schedule: Schedule) => void;
   quota: Quota;
   onQuota: (quota: Quota) => void;
+  updates: Updates;
 };
 
 const inputClass = "rounded-control border border-line bg-bg px-2 py-1 text-sm tabular outline-none focus:border-accent";
 
-/** When downloads may run: only between two times, and only up to so much a day. */
-const WhenToDownload = ({ schedule, onSchedule, quota, onQuota }: Omit<SettingsViewProps, "engine" | "watchClipboard" | "onWatchClipboard">) => (
-  <div className="mb-8 space-y-4">
-    <div className="flex items-start justify-between gap-6">
-      <label className="flex cursor-pointer items-start gap-3">
-        <input
-          type="checkbox"
-          checked={schedule.on}
-          onChange={(e) => onSchedule({ ...schedule, on: e.target.checked })}
-          className="mt-1 size-4 accent-accent"
-        />
-        <span>
-          <span className="block text-sm">Download only between two times</span>
-          <span className="block text-xs text-muted">For a night plan. Outside it, downloads pause and keep what they have</span>
-        </span>
-      </label>
-      <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
-        <input type="time" value={schedule.from} onChange={(e) => onSchedule({ ...schedule, from: e.target.value })} className={inputClass} aria-label="From" />
-        to
-        <input type="time" value={schedule.until} onChange={(e) => onSchedule({ ...schedule, until: e.target.value })} className={inputClass} aria-label="Until" />
-      </span>
-    </div>
-    <div className="flex items-start justify-between gap-6">
-      <label className="flex cursor-pointer items-start gap-3">
-        <input
-          type="checkbox"
-          checked={quota.on}
-          onChange={(e) => onQuota({ ...quota, on: e.target.checked })}
-          className="mt-1 size-4 accent-accent"
-        />
-        <span>
-          <span className="block text-sm">Pause once today has had</span>
-          <span className="block text-xs text-muted">For a data plan. Counts every download today, the terminal's too, and starts again tomorrow</span>
-        </span>
-      </label>
-      <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
-        <input
-          type="number"
-          min={0.1}
-          step={0.5}
-          value={quota.gb}
-          onChange={(e) => onQuota({ ...quota, gb: Number(e.target.value) })}
-          className={`${inputClass} w-20`}
-          aria-label="Gigabytes a day"
-        />
-        GB
-      </span>
-    </div>
+/** A setting: what it is and what it does on one side, its control on the other. */
+const Setting = ({ label, about, children }: { label: string; about: string; children: ReactNode }) => (
+  <div className="flex items-start justify-between gap-6">
+    <span>
+      <span className="block text-sm">{label}</span>
+      <span className="block text-xs text-muted">{about}</span>
+    </span>
+    <span className="flex shrink-0 items-center gap-2 text-sm text-muted">{children}</span>
   </div>
 );
+
+/** When downloads may run: only between two times, and only up to so much a day. */
+const WhenToDownload = ({ schedule, onSchedule, quota, onQuota }: Pick<SettingsViewProps, "schedule" | "onSchedule" | "quota" | "onQuota">) => {
+  const t = useT();
+  return (
+    <div className="mb-8 space-y-4">
+      <div className="flex items-start justify-between gap-6">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={schedule.on}
+            onChange={(e) => onSchedule({ ...schedule, on: e.target.checked })}
+            className="mt-1 size-4 accent-accent"
+          />
+          <span>
+            <span className="block text-sm">{t.scheduleOn}</span>
+            <span className="block text-xs text-muted">{t.scheduleAbout}</span>
+          </span>
+        </label>
+        {/* Times read left to right in any language, as on a clock. */}
+        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <input type="time" dir="ltr" value={schedule.from} onChange={(e) => onSchedule({ ...schedule, from: e.target.value })} className={inputClass} aria-label={t.from} />
+          {t.to}
+          <input type="time" dir="ltr" value={schedule.until} onChange={(e) => onSchedule({ ...schedule, until: e.target.value })} className={inputClass} aria-label={t.until} />
+        </span>
+      </div>
+      <div className="flex items-start justify-between gap-6">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={quota.on}
+            onChange={(e) => onQuota({ ...quota, on: e.target.checked })}
+            className="mt-1 size-4 accent-accent"
+          />
+          <span>
+            <span className="block text-sm">{t.quotaOn}</span>
+            <span className="block text-xs text-muted">{t.quotaAbout}</span>
+          </span>
+        </label>
+        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
+          <input
+            type="number"
+            min={0.1}
+            step={0.5}
+            value={quota.gb}
+            onChange={(e) => onQuota({ ...quota, gb: Number(e.target.value) })}
+            className={`${inputClass} w-20`}
+            aria-label={t.gbADay}
+          />
+          {t.gb}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 /** Start at login, as the system has it: null outside the app, where there is nothing to start. */
 const useStartAtLogin = () => {
@@ -113,39 +135,97 @@ const Switch = ({ label, about, checked, onChange }: { label: string; about: str
   </label>
 );
 
-export const SettingsView = ({ engine, watchClipboard, onWatchClipboard, schedule, onSchedule, quota, onQuota }: SettingsViewProps) => {
+const UpdateSettings = ({ updates }: { updates: Updates }) => {
+  const t = useT();
+  const { status, available } = updates;
+  const result =
+    status === "checking"
+      ? t.checking
+      : status === "current"
+        ? t.upToDate
+        : status === "failed"
+          ? t.updateFailed(updates.problem)
+          : available
+            ? t.updateReady(available.version)
+            : "";
+  return (
+    <>
+      <Setting label={t.updates} about={t.updatesAbout(updates.version)}>
+        {result && (
+          <span className={status === "failed" ? "max-w-56 truncate text-danger" : "text-muted"} title={result}>
+            {result}
+          </span>
+        )}
+        {available && status !== "installing" ? (
+          <button type="button" onClick={updates.install} className="rounded-control button-primary px-3 py-1.5 font-semibold">
+            {t.updateInstall}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={updates.check}
+            disabled={status === "checking" || status === "installing"}
+            className="rounded-control bg-raised px-3 py-1.5 text-text hover:bg-hover disabled:opacity-50"
+          >
+            {t.checkUpdates}
+          </button>
+        )}
+      </Setting>
+      <Switch label={t.autoCheck} about={t.autoCheckAbout} checked={updates.autoCheck} onChange={updates.setAutoCheck} />
+    </>
+  );
+};
+
+export const SettingsView = ({ engine, watchClipboard, onWatchClipboard, schedule, onSchedule, quota, onQuota, updates }: SettingsViewProps) => {
+  const t = useT();
   const { config, send } = engine;
   const [startAtLogin, setStartAtLogin] = useStartAtLogin();
+  const language = useLanguageChoice();
+  const theme = useThemeChoice();
   useEffect(() => send({ cmd: "config" }), [send]);
-  if (!config) return <p className="p-6 text-muted">Loading…</p>;
+  if (!config) return <p className="p-6 text-muted">{t.loading}</p>;
 
   const save = (key: string, value: string | null) => send({ cmd: "config_set", key, value });
+  const [before, after] = t.moxSettingsAbout.split("{mox config}");
 
   return (
     <div className="max-w-3xl p-6">
-      <h2 className="mb-3 text-sm font-semibold">This app</h2>
+      <h2 className="mb-3 text-sm font-semibold">{t.thisApp}</h2>
       <div className="mb-8 space-y-4">
-        <Switch
-          label="Offer copied links"
-          about="When Mox comes to the front with new file links on the clipboard, ask whether to download them"
-          checked={watchClipboard}
-          onChange={onWatchClipboard}
-        />
-        {startAtLogin !== null && (
-          <Switch
-            label="Start Mox when I log in"
-            about="In the tray, by the clock, carrying on with what was left unfinished"
-            checked={startAtLogin}
-            onChange={setStartAtLogin}
+        <Setting label={t.language} about={t.languageAbout}>
+          <Select
+            className="w-40"
+            label={t.language}
+            value={language}
+            options={(["system", "en", "fa"] as const).map((l) => [t.languages[l], l])}
+            onChange={(v) => setLanguage(v as LangChoice)}
           />
+        </Setting>
+        <Setting label={t.theme} about={t.themeAbout}>
+          <Select
+            className="w-40"
+            label={t.theme}
+            value={theme}
+            options={(["system", "dark", "light"] as const).map((v) => [t.themes[v], v])}
+            onChange={(v) => setTheme(v as ThemeChoice)}
+          />
+        </Setting>
+        <Switch label={t.offerCopied} about={t.offerCopiedAbout} checked={watchClipboard} onChange={onWatchClipboard} />
+        {startAtLogin !== null && (
+          <Switch label={t.startAtLogin} about={t.startAtLoginAbout} checked={startAtLogin} onChange={setStartAtLogin} />
         )}
+        {IN_APP && <UpdateSettings updates={updates} />}
       </div>
-      <h2 className="mb-3 text-sm font-semibold">When to download</h2>
+      <h2 className="mb-3 text-sm font-semibold">{t.whenToDownload}</h2>
       <WhenToDownload schedule={schedule} onSchedule={onSchedule} quota={quota} onQuota={onQuota} />
-      <h2 className="mb-1 text-sm font-semibold">Mox</h2>
+      <h2 className="mb-1 text-sm font-semibold">{t.moxSettings}</h2>
       <p className="mb-5 text-sm text-muted">
-        The same settings as <code className="font-mono text-text">mox config</code> in the terminal. Saved in{" "}
-        <code className="font-mono">{config.path}</code>.
+        {before}
+        <code className="font-mono text-text">mox config</code>
+        {after}{" "}
+        <code className="font-mono" dir="ltr">
+          {config.path}
+        </code>
       </p>
       <ul className="divide-y divide-line">
         {Object.entries(config.keys).map(([key, about]) => {
@@ -154,14 +234,18 @@ export const SettingsView = ({ engine, watchClipboard, onWatchClipboard, schedul
             <li key={key} className="flex items-center justify-between gap-6 py-3">
               <div className="min-w-0">
                 <div className="font-mono text-sm">{key}</div>
-                <div className="text-xs text-muted">{about}</div>
+                <div className="text-xs text-muted">{t.configKeys[key] ?? about}</div>
               </div>
               {SWITCHES.has(key) ? (
                 <Select
                   className="w-64"
                   label={key}
                   value={value ? (ON.includes(value.toLowerCase()) ? "on" : "off") : ""}
-                  options={[["default", ""], ["on", "on"], ["off", "off"]]}
+                  options={[
+                    [t.default, ""],
+                    [t.on, "on"],
+                    [t.off, "off"],
+                  ]}
                   onChange={(v) => save(key, v || null)}
                 />
               ) : (

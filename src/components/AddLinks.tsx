@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { Engine } from "../engine/useEngine";
 import { readClipboard, urlsIn } from "../lib/links";
+import { useAppSetting } from "../lib/appSettings";
 import { cn } from "../lib/format";
+import { useT } from "../lib/i18n";
 
 type AddLinksProps = {
   engine: Engine;
@@ -28,11 +30,13 @@ const Toggle = ({ label, hint, checked, onChange }: { label: string; hint: strin
 );
 
 export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
+  const t = useT();
   const { settings, send } = engine;
   const [text, setText] = useState(initialText);
   const [dir, setDir] = useState(settings.dir ?? "");
   const [sort, setSort] = useState(isOn(settings.sort));
   const [stream, setStream] = useState(isOn(settings.stream));
+  const [first, setFirst] = useAppSetting("addFirst", false); // remembered: some always want it
   const links = countLinks(text);
 
   const fromClipboard = useCallback(async () => {
@@ -57,7 +61,7 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
   };
 
   const add = () => {
-    send({ cmd: "add", text, dir: dir || undefined, sort, stream });
+    send({ cmd: "add", text, dir: dir || undefined, sort, stream, first });
     onClose();
   };
 
@@ -67,11 +71,11 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
         className="w-full max-w-xl rounded-card border border-line bg-surface shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Add links"
+        aria-label={t.addLinks}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="font-semibold">Add links</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-muted hover:text-text">
+          <h2 className="font-semibold">{t.addLinks}</h2>
+          <button type="button" onClick={onClose} aria-label={t.close} className="text-muted hover:text-text">
             <X className="size-4" />
           </button>
         </div>
@@ -83,42 +87,45 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (e.ctrlKey || e.metaKey) && links && add()}
-              placeholder="Paste links here, one per line, or text with links in it"
+              dir="auto"
+              placeholder={t.pasteHere}
               className="h-40 w-full resize-none rounded-control border border-line bg-bg p-3 font-mono text-xs leading-relaxed outline-none focus:border-accent"
             />
             <div className="mt-2 flex items-center justify-between text-xs text-muted">
-              <span>{links ? `${links} link${links === 1 ? "" : "s"}` : "No links yet"}</span>
+              <span>{t.linkCount(links)}</span>
               <button type="button" onClick={() => void fromClipboard()} className="inline-flex items-center gap-1.5 hover:text-text">
                 <ClipboardPaste className="size-3.5" />
-                From the clipboard
+                {t.fromClipboard}
               </button>
             </div>
           </div>
 
           <div>
-            <span className="mb-1.5 block text-xs text-muted">Save to</span>
+            <span className="mb-1.5 block text-xs text-muted">{t.saveTo}</span>
             <div className="flex gap-2">
               <input
                 value={dir}
                 onChange={(e) => setDir(e.target.value)}
-                placeholder="Downloads, unless Settings name another folder"
+                dir="auto"
+                placeholder={t.saveToPlaceholder}
                 className="min-w-0 flex-1 rounded-control border border-line bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
               />
               <button type="button" onClick={pickFolder} className="inline-flex items-center gap-2 rounded-control bg-raised px-3 hover:bg-hover">
-                <FolderOpen className="size-4" /> Choose
+                <FolderOpen className="size-4" /> {t.choose}
               </button>
             </div>
           </div>
 
           <div className="space-y-3">
-            <Toggle label="Sort into folders" hint="In a mox folder there: Videos, Music and so on, and series by show and season" checked={sort} onChange={setSort} />
-            <Toggle label="Watch while downloading" hint="Fill each file from the start, to play it before it is done" checked={stream} onChange={setStream} />
+            <Toggle label={t.sortFolders} hint={t.sortFoldersHint} checked={sort} onChange={setSort} />
+            <Toggle label={t.watchWhileDownloading} hint={t.watchWhileHint} checked={stream} onChange={setStream} />
+            <Toggle label={t.addFirst} hint={t.addFirstHint} checked={first} onChange={setFirst} />
           </div>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
           <button type="button" onClick={onClose} className="rounded-control px-4 py-2 text-muted hover:bg-hover hover:text-text">
-            Cancel
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -130,7 +137,7 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
               links ? "button-primary" : "bg-raised text-faint",
             )}
           >
-            Download{links > 1 ? ` ${links}` : ""}
+            {t.downloadCount(links)}
           </button>
         </div>
       </div>

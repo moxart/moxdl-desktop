@@ -16,7 +16,8 @@ import {
 import { useEffect, useState } from "react";
 
 import type { Command, Download } from "../engine/types";
-import { cn, humanSize, humanTime, percent } from "../lib/format";
+import { cn, humanSize, humanTime, num, percent, rate } from "../lib/format";
+import { type Messages, useT } from "../lib/i18n";
 import { IconButton } from "./IconButton";
 import { PieceBar } from "./PieceBar";
 import { Spinner } from "./Spinner";
@@ -50,17 +51,18 @@ const StatusIcon = ({ download }: { download: Download }) => {
   return <Clock className="size-4 text-faint" />;
 };
 
-const note = (d: Download, place: number | null): string => {
+const note = (t: Messages, d: Download, place: number | null): string => {
   if (d.status === "done") return d.path ?? "";
-  if (d.status === "error") return d.expired ? `${d.message}. Copy a fresh link and add it again to continue.` : d.message;
-  if (d.status === "held") return "Paused";
-  if (d.status === "waiting") return place === 1 ? "Next" : place ? `Waiting · #${place}` : "Waiting";
+  if (d.status === "error") return d.expired ? `${d.message}. ${t.freshLinkHint}` : d.message;
+  if (d.status === "held") return t.paused;
+  if (d.status === "waiting") return place === 1 ? t.next : place ? t.waitingPlace(place) : t.waiting;
   if (d.message) return d.message;
-  if (d.stream && d.ready && d.total) return `Playable to ${Math.floor((100 * d.ready) / d.total)}%`;
+  if (d.stream && d.ready && d.total) return t.playableTo(`${num(Math.floor((100 * d.ready) / d.total))}%`);
   return "";
 };
 
 export const DownloadRow = (props: DownloadRowProps) => {
+  const t = useT();
   const { download: d, place, focused, first, send } = props;
   const [confirmRemove, setConfirmRemove] = useState(false);
   useEffect(() => {
@@ -101,22 +103,22 @@ export const DownloadRow = (props: DownloadRowProps) => {
 
       <div className="min-w-0">
         <div className="flex items-baseline gap-3">
-          <span className={cn("truncate font-semibold", d.status === "done" && "text-muted")}>{d.name}</span>
-          {focused && <span className="shrink-0 rounded-full bg-accent/15 px-2 text-xs text-accent">full speed</span>}
-          {d.stream && !finished && <span className="shrink-0 rounded-full bg-raised px-2 text-xs text-muted">watch</span>}
+          <span dir="auto" className={cn("truncate font-semibold", d.status === "done" && "text-muted")}>{d.name}</span>
+          {focused && <span className="shrink-0 rounded-full bg-accent/15 px-2 text-xs text-accent">{t.fullSpeed}</span>}
+          {d.stream && !finished && <span className="shrink-0 rounded-full bg-raised px-2 text-xs text-muted">{t.watch}</span>}
         </div>
         <div className="mt-2">
           <PieceBar pieces={d.pieces} active={running} done={d.status === "done"} />
         </div>
         <div className="mt-1.5 flex gap-4 text-xs text-muted">
-          <span className={cn("truncate", d.status === "error" && "text-danger", held && "text-warn")}>{note(d, place)}</span>
-          <span className="ml-auto flex shrink-0 gap-4 tabular">
+          <span dir="auto" className={cn("truncate", d.status === "error" && "text-danger", held && "text-warn")}>{note(t, d, place)}</span>
+          <span className="ms-auto flex shrink-0 gap-4 tabular">
             {!finished && <span>{percent(d.done, d.total)}</span>}
             {d.status === "downloading" && !d.message && (
               <>
-                <span>{humanSize(d.speed)}/s</span>
+                <span>{rate(d.speed)}</span>
                 <span>{humanTime(d.eta)}</span>
-                <span className="text-faint">{d.connections}×</span>
+                <span className="text-faint">{num(d.connections)}×</span>
               </>
             )}
             <span className="text-faint">
@@ -127,15 +129,15 @@ export const DownloadRow = (props: DownloadRowProps) => {
       </div>
 
       {/* Over the row rather than beside it, so every bar is as long as the others. */}
-      <div className="absolute right-2 top-1.5 flex gap-0.5 rounded-control bg-surface opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+      <div className="absolute end-2 top-1.5 flex gap-0.5 rounded-control bg-surface opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
         {!finished && (
-          <IconButton icon={held ? Play : Pause} label={held ? "Continue" : "Pause"} onClick={() => send({ cmd: "hold", id: d.id, on: !held })} />
+          <IconButton icon={held ? Play : Pause} label={held ? t.resume : t.pause} onClick={() => send({ cmd: "hold", id: d.id, on: !held })} />
         )}
-        {!finished && !first && <IconButton icon={ChevronsUp} label="Download next" onClick={() => send({ cmd: "next", id: d.id })} />}
+        {!finished && !first && <IconButton icon={ChevronsUp} label={t.downloadNext} onClick={() => send({ cmd: "next", id: d.id })} />}
         {!finished && (
           <IconButton
             icon={Zap}
-            label={focused ? "Share the speed again" : "Only this one, at full speed"}
+            label={focused ? t.shareSpeed : t.onlyThis}
             active={focused}
             onClick={() => send({ cmd: "focus", id: focused ? null : d.id })}
           />
@@ -143,19 +145,19 @@ export const DownloadRow = (props: DownloadRowProps) => {
         {!finished && (
           <IconButton
             icon={Tv}
-            label={d.stream ? "Stop downloading in order" : "Download from the start, to watch while it downloads"}
+            label={d.stream ? t.stopInOrder : t.watchWhile}
             active={d.stream}
             onClick={() => send({ cmd: "stream", id: d.id, on: !d.stream })}
           />
         )}
         {(d.status === "done" || (d.stream && (d.ready ?? 0) > 0)) && (
-          <IconButton icon={SquareArrowOutUpRight} label="Open" onClick={() => send({ cmd: "open", id: d.id })} />
+          <IconButton icon={SquareArrowOutUpRight} label={t.open} onClick={() => send({ cmd: "open", id: d.id })} />
         )}
-        {d.path && <IconButton icon={Folder} label="Show in folder" onClick={() => send({ cmd: "reveal", id: d.id })} />}
-        {d.status === "error" && <IconButton icon={RotateCw} label="Try again" onClick={() => send({ cmd: "retry", id: d.id })} />}
+        {d.path && <IconButton icon={Folder} label={t.showInFolder} onClick={() => send({ cmd: "reveal", id: d.id })} />}
+        {d.status === "error" && <IconButton icon={RotateCw} label={t.tryAgain} onClick={() => send({ cmd: "retry", id: d.id })} />}
         <IconButton
           icon={X}
-          label={confirmRemove || props.armed ? "Click again to remove. The partial file stays, to continue later" : "Remove from the list"}
+          label={confirmRemove || props.armed ? t.removeConfirm : t.remove}
           danger={confirmRemove || props.armed}
           onClick={() => (confirmRemove ? send({ cmd: "remove", id: d.id }) : setConfirmRemove(true))}
         />

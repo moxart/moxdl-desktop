@@ -10,14 +10,16 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Pause, resume, and survive reboots and internet outages.
 - Drag downloads into the order you want, or give one all the speed.
 - Keyboard shortcuts, search, and a details panel with the piece map, the speed graph and the link.
-- Download only between certain hours, or up to so much a day.
+- Download only between certain hours, or up to so much a day, and quit, sleep or shut down when everything is done.
 - Watch a video while it downloads.
 - Add links from the browser's right-click menu, by dropping them on the window, or by pasting text with links in it. Links copied a moment ago are offered when the window comes to the front.
 - Series sorted into a folder per show and season.
 - History, and the same settings as `mox config`.
 - Lives in the tray, and can start with the computer.
+- Updates itself: it offers a new version, and installs it when you say so.
+- In English or Persian, dark or light.
 
-Built with Tauri 2, React and Tailwind. Dark theme. Linux, Windows and macOS.
+Built with Tauri 2, React and Tailwind. Linux, Windows and macOS.
 
 ## Install
 
@@ -34,7 +36,11 @@ Mox is built into the app, so nothing else is needed: no Python, no separate ins
 
 ## From the browser
 
-The extension in [`browser-extension/`](browser-extension) adds three items to the right-click menu of Firefox and Chrome: **Download with Mox** on a link, one for the links in selected text, and one for every file link on the page, such as a folder listing. It sends them to the app as a `mox://` link, and the app shows them in its add dialog. Nothing downloads before you press Download there, since any web page can open a `mox://` link too.
+The extension in [`browser-extension/`](browser-extension) takes over the browser's downloads and sends them to Mox, as IDM does. Files the browser knows to be under 1 MB stay with the browser, and so does a download you start again within a minute of handing it to Mox: that is the way to let the browser have one, say from a site that needs your login. Its toolbar button turns this off and on.
+
+It also adds three items to the right-click menu of Firefox and Chrome: **Download with Mox** on a link, one for the links in selected text, and one for every file link on the page, such as a folder listing.
+
+Either way it sends them to the app as a `mox://` link, and the app shows them in its add dialog. Nothing downloads before you press Download there, since any web page can open a `mox://` link too.
 
 - **Chrome, Edge, Brave:** open `chrome://extensions`, turn on Developer mode, press Load unpacked, and pick the `browser-extension` folder.
 - **Firefox:** open `about:debugging#/runtime/this-firefox`, press Load Temporary Add-on, and pick `browser-extension/manifest.json`. It stays until Firefox restarts; for good it needs signing by Mozilla.
@@ -86,8 +92,7 @@ React (src/)  ⇄  Tauri shell (src-tauri/src/lib.rs)  ⇄  mox engine (mox.py)
 
 ## Not done yet
 
-- Signed installers, and updates that install themselves.
-- A light theme, and the app in Persian.
+- Signed installers, so Windows and macOS stop warning about them.
 - Reading the clipboard while the window is in the background: on Wayland that takes focus for a moment, so links are offered when the window comes to the front instead.
 
 ## License

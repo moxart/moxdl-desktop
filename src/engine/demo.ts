@@ -80,11 +80,14 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
     switch (c.cmd) {
       case "add": {
         const urls = (c.text ?? "").match(/https?:\/\/[^\s<>"'`]+/g) ?? c.urls ?? [];
-        const ids = urls.map((url) => {
+        const added = urls.map((url) => {
           const d = { ...episode(next++, 1200 * MB), url, name: decodeURIComponent(url.split("/").pop()!.split("?")[0]), stream: !!c.stream };
-          downloads.push(d);
-          return d.id;
+          return d;
         });
+        // first: ahead of everything unfinished, as mox does.
+        const unfinished = downloads.findIndex((d) => !["done", "error"].includes(d.status));
+        downloads.splice(c.first && unfinished >= 0 ? unfinished : downloads.length, 0, ...added);
+        const ids = added.map((d) => d.id);
         emit({ type: "added", ids });
         break;
       }

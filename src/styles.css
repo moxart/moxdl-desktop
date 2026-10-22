@@ -21,6 +21,11 @@ textarea {
   user-select: text;
 }
 
+/* In Persian, Vazirmatn leads, Latin included, so a line keeps one voice. */
+:root:lang(fa) body {
+  font-family: "Vazirmatn Variable", "Manrope Variable", system-ui, sans-serif;
+}
+
 /* Numbers that change several times a second stay put instead of jittering. */
 .tabular {
   font-variant-numeric: tabular-nums;
@@ -64,5 +69,27 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .button-primary {
     transition: none;
+  }
+}
+
+/* The logo's fruit nods once when all downloads are done. */
+@keyframes nod {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-14deg) scale(1.1);
+  }
+  60% {
+    transform: rotate(8deg);
+  }
+}
+.nod {
+  animation: nod 0.9s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nod {
+    animation: none;
   }
 }
