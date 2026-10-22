@@ -24,7 +24,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-single-instance = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-deep-link = "2"
+# Held back: rust-ini 0.21.2 added fields that tauri-plugin-deep-link 2.6 does not set, and it
+# stopped compiling. Drop this line once the plugin catches up.
+rust-ini = "=0.21.1"
+tauri-plugin-clipboard-manager = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

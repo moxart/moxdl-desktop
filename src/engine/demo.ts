@@ -131,7 +131,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         emit({ type: "notice", text: "In the real app this opens the file or its folder." });
         break;
       case "clipboard":
-        emit({ type: "clipboard", urls: [], tool: "wl-paste" });
+        emit({ type: "clipboard", urls: [], tool: "wl-paste", files: !!c.files });
         break;
       case "config":
       case "config_set":

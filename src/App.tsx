@@ -2,13 +2,17 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { AddLinks } from "./components/AddLinks";
+import { ClipboardOffer } from "./components/ClipboardOffer";
 import { DownloadList } from "./components/DownloadList";
+import { DropOverlay } from "./components/DropOverlay";
 import { HistoryView } from "./components/HistoryView";
 import { Logo } from "./components/Logo";
 import { SettingsView } from "./components/SettingsView";
 import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
+import { useIncomingLinks } from "./engine/useIncomingLinks";
 import { type Engine, useEngine } from "./engine/useEngine";
+import { useAppSetting } from "./lib/appSettings";
 import { cn } from "./lib/format";
 
 type Tab = "downloads" | "history" | "settings";
@@ -37,9 +41,19 @@ export const App = () => {
   const engine = useEngine();
   const [tab, setTab] = useState<Tab>("downloads");
   const [adding, setAdding] = useState<string | null>(null); // the text to add, while the dialog is open
+  const [addKey, setAddKey] = useState(0); // a new key reopens the dialog with what arrived since
+  const [watchClipboard, setWatchClipboard] = useAppSetting("watchClipboard", true);
   const busy = engine.state?.downloads.some((d) => ["connecting", "downloading", "verifying"].includes(d.status)) ?? false;
 
   useEffect(() => engine.send({ cmd: "config" }), [engine.send]);
+
+  // Links from anywhere join whatever the dialog already holds.
+  const addLinks = useCallback((text: string) => {
+    setTab("downloads");
+    setAdding((current) => (current?.trim() ? `${current}\n${text}` : text));
+    setAddKey((key) => key + 1);
+  }, []);
+  const incoming = useIncomingLinks(engine, addLinks, watchClipboard);
 
   // Ctrl+V anywhere outside a text field opens the dialog with what was pasted.
   useEffect(() => {
@@ -47,14 +61,11 @@ export const App = () => {
       const target = e.target as HTMLElement;
       if (adding !== null || target.closest("input, textarea")) return;
       const text = e.clipboardData?.getData("text") ?? "";
-      if (text.trim()) {
-        setTab("downloads");
-        setAdding(text);
-      }
+      if (text.trim()) addLinks(text);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [adding]);
+  }, [adding, addLinks]);
 
   const openAdd = useCallback(() => setAdding(""), []);
   const down = engine.connection === "missing" || engine.connection === "stopped";
@@ -93,17 +104,23 @@ export const App = () => {
         {down ? (
           <EngineProblem engine={engine} />
         ) : tab === "downloads" ? (
-          <DownloadList state={engine.state} send={engine.send} onAdd={openAdd} />
+          <>
+            {incoming.offer.length > 0 && (
+              <ClipboardOffer urls={incoming.offer} onTake={incoming.takeOffer} onDismiss={incoming.dismissOffer} />
+            )}
+            <DownloadList state={engine.state} send={engine.send} onAdd={openAdd} />
+          </>
         ) : tab === "history" ? (
           <HistoryView engine={engine} />
         ) : (
-          <SettingsView engine={engine} />
+          <SettingsView engine={engine} watchClipboard={watchClipboard} onWatchClipboard={setWatchClipboard} />
         )}
       </main>
 
       <StatusBar engine={engine} />
       <Toasts toasts={engine.toasts} />
-      {adding !== null && <AddLinks engine={engine} initialText={adding} onClose={() => setAdding(null)} />}
+      {adding !== null && <AddLinks key={addKey} engine={engine} initialText={adding} onClose={() => setAdding(null)} />}
+      {incoming.dropping && <DropOverlay />}
     </div>
   );
 };

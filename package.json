@@ -9,11 +9,13 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "engine": "scripts/build-engine.sh",
-    "package": "scripts/build-engine.sh && tauri build --config src-tauri/tauri.release.conf.json"
+    "package": "scripts/build-engine.sh && tauri build --config src-tauri/tauri.release.conf.json",
+    "extension": "web-ext build --source-dir browser-extension --artifacts-dir dist-extension --overwrite-dest"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-opener": "^2",
     "lucide-react": "^1.61.0",
@@ -27,7 +29,8 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "web-ext": "^8.10.0"
   },
   "description": "Desktop app for mox, the multi-connection download manager",
   "license": "MIT"

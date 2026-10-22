@@ -30,3 +30,6 @@ src-tauri/binaries/
 # Downloads in progress, should one be saved here
 *.part
 *.mox
+
+# The browser extension's zip, from npm run extension
+dist-extension/

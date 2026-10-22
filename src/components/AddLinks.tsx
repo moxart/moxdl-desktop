@@ -1,8 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { ClipboardPaste, FolderOpen, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { Engine } from "../engine/useEngine";
+import { readClipboard, urlsIn } from "../lib/links";
 import { cn } from "../lib/format";
 
 type AddLinksProps = {
@@ -27,23 +28,22 @@ const Toggle = ({ label, hint, checked, onChange }: { label: string; hint: strin
 );
 
 export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
-  const { settings, clipboard, send } = engine;
+  const { settings, send } = engine;
   const [text, setText] = useState(initialText);
   const [dir, setDir] = useState(settings.dir ?? "");
   const [sort, setSort] = useState(isOn(settings.sort));
   const [stream, setStream] = useState(isOn(settings.stream));
-  const asked = useRef(false);
   const links = countLinks(text);
+
+  const fromClipboard = useCallback(async () => {
+    const urls = urlsIn(await readClipboard());
+    if (urls.length) setText((current) => (current.trim() ? `${current}\n` : "") + urls.join("\n"));
+  }, []);
 
   // Opening the dialog looks at the clipboard: links copied a moment ago are usually the ones wanted.
   useEffect(() => {
-    if (!initialText) send({ cmd: "clipboard" });
-    asked.current = true;
-  }, [initialText, send]);
-  useEffect(() => {
-    // Runs when the clipboard answer arrives, and fills in only an empty box.
-    if (asked.current && clipboard?.urls.length && !text) setText(clipboard.urls.join("\n"));
-  }, [clipboard]);
+    if (!initialText) void fromClipboard();
+  }, [initialText, fromClipboard]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -88,9 +88,9 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
             />
             <div className="mt-2 flex items-center justify-between text-xs text-muted">
               <span>{links ? `${links} link${links === 1 ? "" : "s"}` : "No links yet"}</span>
-              <button type="button" onClick={() => send({ cmd: "clipboard" })} className="inline-flex items-center gap-1.5 hover:text-text">
+              <button type="button" onClick={() => void fromClipboard()} className="inline-flex items-center gap-1.5 hover:text-text">
                 <ClipboardPaste className="size-3.5" />
-                {clipboard && !clipboard.tool ? "No clipboard tool: install wl-clipboard" : "From the clipboard"}
+                From the clipboard
               </button>
             </div>
           </div>

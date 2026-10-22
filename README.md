@@ -10,7 +10,7 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Pause, resume, and survive reboots and internet outages.
 - Drag downloads into the order you want, or give one all the speed.
 - Watch a video while it downloads.
-- Paste text with links in it, or press Ctrl+V anywhere in the window.
+- Add links from the browser's right-click menu, by dropping them on the window, or by pasting text with links in it. Links copied a moment ago are offered when the window comes to the front.
 - Series sorted into a folder per show and season.
 - History, and the same settings as `mox config`.
 
@@ -26,6 +26,15 @@ chmod +x Mox_0.2.2_amd64.AppImage && ./Mox_0.2.2_amd64.AppImage   # any distribu
 ```
 
 Mox is built into the app, so nothing else is needed: no Python, no separate install.
+
+## From the browser
+
+The extension in [`browser-extension/`](browser-extension) adds three items to the right-click menu of Firefox and Chrome: **Download with Mox** on a link, one for the links in selected text, and one for every file link on the page, such as a folder listing. It sends them to the app as a `mox://` link, and the app shows them in its add dialog. Nothing downloads before you press Download there, since any web page can open a `mox://` link too.
+
+- **Chrome, Edge, Brave:** open `chrome://extensions`, turn on Developer mode, press Load unpacked, and pick the `browser-extension` folder.
+- **Firefox:** open `about:debugging#/runtime/this-firefox`, press Load Temporary Add-on, and pick `browser-extension/manifest.json`. It stays until Firefox restarts; for good it needs signing by Mozilla.
+
+The first time, the browser asks whether to let it open Mox. `npm run extension` zips it for a store.
 
 ## Build it
 
@@ -45,7 +54,7 @@ npm run package         # installers in src-tauri/target/release/bundle/
 
 `npm run package` first builds Mox into one executable with PyInstaller (`scripts/build-engine.sh`, in a venv of its own), then puts it in the installers.
 
-The app finds Mox in this order: the `MOX_ENGINE` variable (a whole command, such as `python3 /path/to/mox.py`); in a development build, `../moxdl/mox.py`; the Mox built into the app; `mox` on the PATH (version 1.7 or newer).
+The app finds Mox in this order: the `MOX_ENGINE` variable (a whole command, such as `python3 /path/to/mox.py`); in a development build, `../moxdl/mox.py`; the Mox built into the app; `mox` on the PATH (version 1.8 or newer).
 
 ## Change the look
 
@@ -72,9 +81,9 @@ React (src/)  ⇄  Tauri shell (src-tauri/src/lib.rs)  ⇄  mox engine (mox.py)
 
 ## Not done yet
 
-- Windows and macOS builds.
-- Desktop notifications from the app itself (Mox's sound already plays).
+- Windows and macOS builds, and updates that install themselves.
 - Keyboard shortcuts in the list, as in the terminal.
+- Reading the clipboard while the window is in the background: on Wayland that takes focus for a moment, so links are offered when the window comes to the front instead.
 
 ## License
 

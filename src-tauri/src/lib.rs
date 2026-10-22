@@ -17,6 +17,7 @@ use serde_json::Value;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_notification::NotificationExt;
 
 /// How long quitting waits for mox to save the progress of every download.
@@ -37,6 +38,12 @@ struct Engine {
 struct Tray {
     status: MenuItem<Wry>,
 }
+
+/// Links that came in from outside (a mox:// link, from the browser extension or a web page)
+/// and wait for the window to pick them up. The window shows them in the add dialog rather
+/// than downloading at once: any web page can open a mox:// link, and nothing should land on
+/// the disk without the user's say.
+struct Incoming(Mutex<Vec<String>>);
 
 /// The command that starts the engine, first match wins:
 /// 1. MOX_ENGINE, a whole command line, e.g. `python3 /path/to/mox.py`;
@@ -260,6 +267,43 @@ fn quit(app: &AppHandle) {
     });
 }
 
+/// The links in a mox:// link: `mox://add?url=...&url=...`, as the browser extension makes
+/// them, or the plain `mox:https://...`.
+fn links_in(link: &str) -> Vec<String> {
+    let Some(rest) = link.strip_prefix("mox:") else {
+        return Vec::new();
+    };
+    let rest = rest.trim_start_matches('/');
+    if rest.starts_with("http://") || rest.starts_with("https://") {
+        return vec![rest.to_owned()];
+    }
+    tauri::Url::parse(link)
+        .map(|url| {
+            url.query_pairs()
+                .filter(|(key, value)| key == "url" && value.starts_with("http"))
+                .map(|(_, value)| value.into_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Queue the links in these command-line arguments or opened URLs, and bring the window up.
+fn take_links<'a>(app: &AppHandle, links: impl IntoIterator<Item = &'a str>) {
+    let found: Vec<String> = links.into_iter().flat_map(links_in).collect();
+    if found.is_empty() {
+        return;
+    }
+    app.state::<Incoming>().0.lock().unwrap().extend(found);
+    show_window(app);
+    let _ = app.emit("links-incoming", ());
+}
+
+/// The links waiting for the add dialog, one per line, and forget them.
+#[tauri::command]
+fn incoming_links(state: tauri::State<Incoming>) -> String {
+    std::mem::take(&mut *state.0.lock().unwrap()).join("\n")
+}
+
 fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -311,20 +355,43 @@ pub fn run() {
     let app = tauri::Builder::default()
         // First: a second start, say from the menu while the window hides in the tray, shows
         // this one instead of starting a second engine on the same files.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_window(app)
+        // It also hands over a mox:// link the second start was opened with.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            show_window(app);
+            take_links(app, args.iter().map(String::as_str));
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Engine {
             child: Mutex::new(None),
             stdin: Mutex::new(None),
             busy: AtomicBool::new(false),
             told_hidden: AtomicBool::new(false),
         })
-        .invoke_handler(tauri::generate_handler![engine_send, restart_engine])
+        .manage(Incoming(Mutex::new(Vec::new())))
+        .invoke_handler(tauri::generate_handler![
+            engine_send,
+            restart_engine,
+            incoming_links
+        ])
         .setup(|app| {
+            // Installed apps register mox:// through their desktop file; a development build
+            // registers itself, so the browser extension can be tried without installing.
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            if let Err(e) = app.deep_link().register_all() {
+                eprintln!("mox:// links not registered: {e}");
+            }
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                take_links(&handle, urls.iter().map(String::as_str));
+            });
+            // Started by a mox:// link: it is among the arguments.
+            let args: Vec<String> = std::env::args().skip(1).collect();
+            take_links(app.handle(), args.iter().map(String::as_str));
             if let Err(e) = build_tray(app.handle()) {
                 eprintln!("no tray icon: {e}"); // the app works without one, only closing quits
             }
@@ -362,4 +429,23 @@ pub fn run() {
             stop_engine(app);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::links_in;
+
+    #[test]
+    fn mox_links() {
+        let one = "mox://add?url=https%3A%2F%2Fdl.example%2Fa.mkv%3Fmd5%3Dx%26expires%3D1";
+        assert_eq!(links_in(one), ["https://dl.example/a.mkv?md5=x&expires=1"]);
+        let two = "mox://add?url=https%3A%2F%2Fa.example%2F1.zip&url=https%3A%2F%2Fa.example%2F2.zip";
+        assert_eq!(links_in(two).len(), 2);
+        assert_eq!(links_in("mox:https://a.example/x.iso"), ["https://a.example/x.iso"]);
+        // Anything else a page might put in a mox:// link is not a download.
+        assert!(links_in("mox://add?url=file%3A%2F%2F%2Fetc%2Fpasswd").is_empty());
+        assert!(links_in("mox://add?url=javascript%3Aalert(1)").is_empty());
+        assert!(links_in("https://a.example/x.iso").is_empty());
+        assert!(links_in("--some-flag").is_empty());
+    }
 }

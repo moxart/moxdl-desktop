@@ -18,7 +18,8 @@
         "minWidth": 720,
         "minHeight": 440,
         "backgroundColor": "#121316",
-        "center": true
+        "center": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {
@@ -45,5 +46,14 @@
     "copyright": "MIT License",
     "homepage": "https://github.com/moxart/moxdl-desktop",
     "license": "MIT"
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "mox"
+        ]
+      }
+    }
   }
 }

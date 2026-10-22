@@ -23,7 +23,6 @@ export const useEngine = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [config, setConfig] = useState<Config | null>(null);
   const [history, setHistory] = useState<History | null>(null);
-  const [clipboard, setClipboard] = useState<{ urls: string[]; tool: string | null } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextToast = useRef(1);
   const demo = useRef<ReturnType<typeof startDemo> | null>(null);
@@ -74,9 +73,6 @@ export const useEngine = () => {
         case "error":
           toast(event.text, "error");
           break;
-        case "clipboard":
-          setClipboard({ urls: event.urls, tool: event.tool });
-          break;
         case "config":
           setConfig(event);
           setSettings(event.settings);
@@ -112,7 +108,7 @@ export const useEngine = () => {
     return () => stops.forEach((stop) => stop.then((unlisten) => unlisten()));
   }, [toast]);
 
-  return { connection, problem, version, state, settings, config, history, clipboard, toasts, send, restart, toast };
+  return { connection, problem, version, state, settings, config, history, toasts, send, restart, toast };
 };
 
 export type Engine = ReturnType<typeof useEngine>;

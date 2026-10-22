@@ -24,7 +24,13 @@ const Field = ({ name, value, onSave }: { name: string; value: string; onSave: (
   );
 };
 
-export const SettingsView = ({ engine }: { engine: Engine }) => {
+type SettingsViewProps = {
+  engine: Engine;
+  watchClipboard: boolean;
+  onWatchClipboard: (on: boolean) => void;
+};
+
+export const SettingsView = ({ engine, watchClipboard, onWatchClipboard }: SettingsViewProps) => {
   const { config, send } = engine;
   useEffect(() => send({ cmd: "config" }), [send]);
   if (!config) return <p className="p-6 text-muted">Loading…</p>;
@@ -33,6 +39,22 @@ export const SettingsView = ({ engine }: { engine: Engine }) => {
 
   return (
     <div className="max-w-3xl p-6">
+      <h2 className="mb-3 text-sm font-semibold">This app</h2>
+      <label className="mb-8 flex cursor-pointer items-start justify-between gap-6">
+        <span>
+          <span className="block text-sm">Offer copied links</span>
+          <span className="block text-xs text-muted">
+            When Mox comes to the front with new file links on the clipboard, ask whether to download them
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={watchClipboard}
+          onChange={(e) => onWatchClipboard(e.target.checked)}
+          className="mt-1 size-4 accent-accent"
+        />
+      </label>
+      <h2 className="mb-1 text-sm font-semibold">Mox</h2>
       <p className="mb-5 text-sm text-muted">
         The same settings as <code className="font-mono text-text">mox config</code> in the terminal. Saved in{" "}
         <code className="font-mono">{config.path}</code>.

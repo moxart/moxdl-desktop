@@ -65,7 +65,7 @@ export type EngineEvent =
   | { type: "added"; ids: number[] }
   | { type: "finished"; id: number; status: Status; name: string; message: string; path: string | null }
   | { type: "notice"; text: string }
-  | { type: "clipboard"; urls: string[]; tool: string | null }
+  | { type: "clipboard"; urls: string[]; tool: string | null; files: boolean }
   | ({ type: "config" } & Config)
   | ({ type: "history" } & History)
   | { type: "error"; text: string };
@@ -84,7 +84,7 @@ export type Command =
   | { cmd: "open"; id: number }
   | { cmd: "reveal"; id: number }
   | { cmd: "set"; jobs?: number; limit?: string | number | null }
-  | { cmd: "clipboard" }
+  | { cmd: "clipboard"; files?: boolean }
   | { cmd: "config" }
   | { cmd: "config_set"; key: string; value: string | null }
   | { cmd: "history"; limit?: number }
