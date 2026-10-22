@@ -9,21 +9,26 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Many connections per file, and a progress bar that shows which parts of the file are on disk.
 - Pause, resume, and survive reboots and internet outages.
 - Drag downloads into the order you want, or give one all the speed.
+- Keyboard shortcuts, search, and a details panel with the piece map, the speed graph and the link.
+- Download only between certain hours, or up to so much a day.
 - Watch a video while it downloads.
 - Add links from the browser's right-click menu, by dropping them on the window, or by pasting text with links in it. Links copied a moment ago are offered when the window comes to the front.
 - Series sorted into a folder per show and season.
 - History, and the same settings as `mox config`.
+- Lives in the tray, and can start with the computer.
 
-Built with Tauri 2, React and Tailwind. Dark theme. Linux for now.
+Built with Tauri 2, React and Tailwind. Dark theme. Linux, Windows and macOS.
 
 ## Install
 
-From a release, on Linux:
+From a [release](https://github.com/moxart/moxdl-desktop/releases), on Linux:
 
 ```bash
-sudo apt install ./Mox_0.2.2_amd64.deb      # Debian, Ubuntu
-chmod +x Mox_0.2.2_amd64.AppImage && ./Mox_0.2.2_amd64.AppImage   # any distribution
+sudo apt install ./Mox_0.3.0_amd64.deb      # Debian, Ubuntu
+chmod +x Mox_0.3.0_amd64.AppImage && ./Mox_0.3.0_amd64.AppImage   # any distribution
 ```
+
+On Windows run `Mox_0.3.0_x64-setup.exe`; on a Mac open `Mox_0.3.0_aarch64.dmg` (Apple silicon) or `Mox_0.3.0_x64.dmg` (Intel). The installers are not signed yet, so Windows shows a SmartScreen warning (More info → Run anyway), and macOS needs a right-click → Open the first time.
 
 Mox is built into the app, so nothing else is needed: no Python, no separate install.
 
@@ -81,8 +86,8 @@ React (src/)  ⇄  Tauri shell (src-tauri/src/lib.rs)  ⇄  mox engine (mox.py)
 
 ## Not done yet
 
-- Windows and macOS builds, and updates that install themselves.
-- Keyboard shortcuts in the list, as in the terminal.
+- Signed installers, and updates that install themselves.
+- A light theme, and the app in Persian.
 - Reading the clipboard while the window is in the background: on Wayland that takes focus for a moment, so links are offered when the window comes to the front instead.
 
 ## License
