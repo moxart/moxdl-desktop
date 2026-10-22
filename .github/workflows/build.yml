@@ -25,7 +25,7 @@ jobs:
             bundles: nsis
           - os: macos-latest # Apple silicon
             bundles: dmg
-          - os: macos-13 # Intel
+          - os: macos-15-intel # Intel; GitHub retired macos-13, whose jobs sat queued
             bundles: dmg
     runs-on: ${{ matrix.os }}
     steps:
