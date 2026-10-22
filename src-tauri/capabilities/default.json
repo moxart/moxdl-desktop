@@ -10,6 +10,7 @@
     "opener:default",
     "dialog:default",
     "clipboard-manager:allow-read-text",
-    "autostart:default"
+    "autostart:default",
+    "clipboard-manager:allow-write-text"
   ]
 }

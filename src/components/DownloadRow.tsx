@@ -29,6 +29,7 @@ type DownloadRowProps = {
   selected: boolean; // the row the keys act on
   armed: boolean; // Delete was pressed once on it
   onSelect: () => void;
+  onOpenDetails: () => void;
   send: (command: Command) => void;
   dragging: boolean;
   dropAbove: boolean;
@@ -76,6 +77,7 @@ export const DownloadRow = (props: DownloadRowProps) => {
     <li
       data-download={d.id}
       onMouseDown={props.onSelect}
+      onDoubleClick={props.onOpenDetails}
       draggable={!finished}
       onDragStart={props.onDragStart}
       onDragOver={(e) => {

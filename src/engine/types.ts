@@ -37,7 +37,13 @@ export type EngineState = {
   jobs: number;
   limit: number | null;
   free: number | null; // bytes free where downloads go
+  window: Window | null; // download only between these times
+  quota: number | null; // bytes a day
+  today: number; // bytes received today
+  gate: "schedule" | "quota" | null; // why nothing runs now
 };
+
+export type Window = { from: string; until: string }; // "02:00", "07:00"
 
 export type HistoryEntry = {
   time: string;
@@ -84,7 +90,7 @@ export type Command =
   | { cmd: "clear" }
   | { cmd: "open"; id: number }
   | { cmd: "reveal"; id: number }
-  | { cmd: "set"; jobs?: number; limit?: string | number | null }
+  | { cmd: "set"; jobs?: number; limit?: string | number | null; window?: Window | null; quota?: number | null }
   | { cmd: "clipboard"; files?: boolean }
   | { cmd: "config" }
   | { cmd: "config_set"; key: string; value: string | null }

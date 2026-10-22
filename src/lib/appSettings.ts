@@ -29,3 +29,27 @@ export const useAppSetting = (key: string, fallback: boolean) => {
   );
   return [value, change] as const;
 };
+
+/** Like useAppSetting, for any value that survives JSON: a schedule, a quota. */
+export const useAppValue = <T,>(key: string, fallback: T) => {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = localStorage.getItem(PREFIX + key);
+      return saved === null ? fallback : (JSON.parse(saved) as T);
+    } catch {
+      return fallback;
+    }
+  });
+  const change = useCallback(
+    (next: T) => {
+      setValue(next);
+      try {
+        localStorage.setItem(PREFIX + key, JSON.stringify(next));
+      } catch {
+        // not remembered past this run
+      }
+    },
+    [key],
+  );
+  return [value, change] as const;
+};

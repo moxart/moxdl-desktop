@@ -2,6 +2,7 @@ import { Plus, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Command, Download, EngineState } from "../engine/types";
+import { Details } from "./Details";
 import { DownloadRow } from "./DownloadRow";
 
 type DownloadListProps = {
@@ -20,12 +21,13 @@ const KEYS: [string, string][] = [
   ["W", "watch while downloading"],
   ["P / Space", "pause"],
   ["O", "open"],
+  ["I", "details"],
   ["Delete twice", "remove"],
   ["/", "search"],
 ];
 
 const EmptyList = ({ onAdd }: { onAdd: () => void }) => (
-  <div className="grid h-full place-items-center">
+  <div className="grid min-h-0 flex-1 place-items-center">
     <div className="text-center">
       <p className="text-muted">Nothing downloading.</p>
       <p className="mt-1 text-sm text-faint">Copy some links and press Ctrl+V here, drop them on the window, or</p>
@@ -51,6 +53,7 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
   const [selected, setSelected] = useState<number | null>(null);
   const [armed, setArmed] = useState<number | null>(null); // Delete pressed once on it
   const [query, setQuery] = useState("");
+  const [details, setDetails] = useState(false); // the selected row's panel is open
   const search = useRef<HTMLInputElement>(null);
   const downloads = state?.downloads ?? [];
   const shown = query ? downloads.filter((d) => d.name.toLowerCase().includes(query.toLowerCase())) : downloads;
@@ -78,6 +81,10 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
         search.current?.blur();
         return;
       }
+      if (e.key === "Escape" && details && !typing(e.target)) {
+        setDetails(false);
+        return;
+      }
       // Not while typing, and not under the add dialog.
       if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('[role="dialog"]')) return;
       const at = shown.findIndex((d) => d.id === selected);
@@ -103,6 +110,7 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
       else if (key === "w" && !finished(d)) send({ cmd: "stream", id: d.id, on: !d.stream });
       else if ((key === "p" || e.key === " ") && !finished(d)) send({ cmd: "hold", id: d.id, on: d.status !== "held" });
       else if (key === "o") send({ cmd: "open", id: d.id });
+      else if (key === "i") setDetails((open) => !open);
       else if (key === "delete" || key === "backspace" || key === "x") {
         if (armed === d.id) {
           send({ cmd: "remove", id: d.id });
@@ -116,7 +124,7 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [shown, downloads, selected, armed, send, state?.focus]);
+  }, [shown, downloads, selected, armed, send, state?.focus, details]);
 
   if (!downloads.length) return <EmptyList onAdd={onAdd} />;
 
@@ -132,51 +140,65 @@ export const DownloadList = ({ state, send, onAdd }: DownloadListProps) => {
     setTarget(null);
   };
 
+  const chosen = details ? downloads.find((d) => d.id === selected) : undefined;
+
   return (
-    <div className="p-3">
-      <label className="mb-2 flex items-center gap-2 rounded-control border border-line bg-surface px-3 py-1.5 focus-within:border-accent">
-        <Search className="size-4 shrink-0 text-faint" />
-        <input
-          ref={search}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search downloads"
-          title={KEYS.map(([key, does]) => `${key}: ${does}`).join("\n")}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
-        />
-        {query ? (
-          <button type="button" onClick={() => setQuery("")} aria-label="Clear the search" className="text-faint hover:text-text">
-            <X className="size-4" />
-          </button>
-        ) : (
-          <kbd className="rounded border border-line px-1.5 font-mono text-xs text-faint">/</kbd>
-        )}
-      </label>
-      {shown.length === 0 && <p className="px-3 py-6 text-sm text-muted">No download has “{query}” in its name.</p>}
-      <ul className="flex flex-col gap-1">
-        {shown.map((d) => (
-          <DownloadRow
-            key={d.id}
-            download={d}
-            place={d.status === "waiting" ? waiting.indexOf(d) + 1 : null}
-            focused={state?.focus === d.id}
-            first={firstUnfinished?.id === d.id}
-            selected={selected === d.id}
-            armed={armed === d.id}
-            onSelect={() => setSelected(d.id)}
-            send={send}
-            dragging={dragged === d.id}
-            dropAbove={dragged !== null && target === d.id && dragged !== d.id}
-            onDragStart={() => setDragged(d.id)}
-            onDragOver={() => setTarget(d.id)}
-            onDrop={drop}
-            onDragEnd={() => {
-              setDragged(null);
-              setTarget(null);
-            }}
+    <div className="flex min-h-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-y-auto p-3">
+        <label className="mb-2 flex items-center gap-2 rounded-control border border-line bg-surface px-3 py-1.5 focus-within:border-accent">
+          <Search className="size-4 shrink-0 text-faint" />
+          <input
+            ref={search}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search downloads"
+            title={KEYS.map(([key, does]) => `${key}: ${does}`).join("\n")}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
           />
-        ))}
-      </ul>
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear the search"
+              className="text-faint hover:text-text"
+            >
+              <X className="size-4" />
+            </button>
+          ) : (
+            <kbd className="rounded border border-line px-1.5 font-mono text-xs text-faint">/</kbd>
+          )}
+        </label>
+        {shown.length === 0 && <p className="px-3 py-6 text-sm text-muted">No download has “{query}” in its name.</p>}
+        <ul className="flex flex-col gap-1">
+          {shown.map((d) => (
+            <DownloadRow
+              key={d.id}
+              download={d}
+              place={d.status === "waiting" ? waiting.indexOf(d) + 1 : null}
+              focused={state?.focus === d.id}
+              first={firstUnfinished?.id === d.id}
+              selected={selected === d.id}
+              armed={armed === d.id}
+              onSelect={() => setSelected(d.id)}
+              onOpenDetails={() => {
+                setSelected(d.id);
+                setDetails(true);
+              }}
+              send={send}
+              dragging={dragged === d.id}
+              dropAbove={dragged !== null && target === d.id && dragged !== d.id}
+              onDragStart={() => setDragged(d.id)}
+              onDragOver={() => setTarget(d.id)}
+              onDrop={drop}
+              onDragEnd={() => {
+                setDragged(null);
+                setTarget(null);
+              }}
+            />
+          ))}
+        </ul>
+      </div>
+      {chosen && <Details download={chosen} send={send} onClose={() => setDetails(false)} />}
     </div>
   );
 };

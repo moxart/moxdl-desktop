@@ -12,7 +12,10 @@ import { StatusBar } from "./components/StatusBar";
 import { Toasts } from "./components/Toasts";
 import { useIncomingLinks } from "./engine/useIncomingLinks";
 import { type Engine, useEngine } from "./engine/useEngine";
-import { useAppSetting } from "./lib/appSettings";
+import { useAppSetting, useAppValue } from "./lib/appSettings";
+
+export type Schedule = { on: boolean; from: string; until: string };
+export type Quota = { on: boolean; gb: number };
 import { cn } from "./lib/format";
 
 type Tab = "downloads" | "history" | "settings";
@@ -28,9 +31,14 @@ const EngineProblem = ({ engine }: { engine: Engine }) => (
     <div className="max-w-md text-center">
       <p className="font-medium">{engine.connection === "missing" ? "Mox could not be started" : "Mox stopped"}</p>
       <p className="mt-2 text-sm text-muted">
-        {engine.problem || "The download engine exited. Downloads keep their progress and continue when it starts again."}
+        {engine.problem ||
+          "The download engine exited. Downloads keep their progress and continue when it starts again."}
       </p>
-      <button type="button" onClick={engine.restart} className="mt-5 rounded-control bg-raised px-4 py-2 hover:bg-hover">
+      <button
+        type="button"
+        onClick={engine.restart}
+        className="mt-5 rounded-control bg-raised px-4 py-2 hover:bg-hover"
+      >
         Start Mox again
       </button>
     </div>
@@ -43,7 +51,20 @@ export const App = () => {
   const [adding, setAdding] = useState<string | null>(null); // the text to add, while the dialog is open
   const [addKey, setAddKey] = useState(0); // a new key reopens the dialog with what arrived since
   const [watchClipboard, setWatchClipboard] = useAppSetting("watchClipboard", true);
-  const busy = engine.state?.downloads.some((d) => ["connecting", "downloading", "verifying"].includes(d.status)) ?? false;
+  const [schedule, setSchedule] = useAppValue<Schedule>("schedule", { on: false, from: "02:00", until: "07:00" });
+  const [quota, setQuota] = useAppValue<Quota>("quota", { on: false, gb: 5 });
+
+  // The schedule and the quota are the app's to keep: mox hears them each time it starts.
+  useEffect(() => {
+    if (engine.connection !== "running") return;
+    engine.send({
+      cmd: "set",
+      window: schedule.on ? { from: schedule.from, until: schedule.until } : null,
+      quota: quota.on && quota.gb > 0 ? Math.round(quota.gb * 1024 ** 3) : null,
+    });
+  }, [engine.connection, engine.send, schedule, quota]);
+  const busy =
+    engine.state?.downloads.some((d) => ["connecting", "downloading", "verifying"].includes(d.status)) ?? false;
 
   useEffect(() => engine.send({ cmd: "config" }), [engine.send]);
 
@@ -100,7 +121,7 @@ export const App = () => {
         </button>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="flex min-h-0 flex-1 flex-col">
         {down ? (
           <EngineProblem engine={engine} />
         ) : tab === "downloads" ? (
@@ -111,15 +132,29 @@ export const App = () => {
             <DownloadList state={engine.state} send={engine.send} onAdd={openAdd} />
           </>
         ) : tab === "history" ? (
-          <HistoryView engine={engine} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <HistoryView engine={engine} />
+          </div>
         ) : (
-          <SettingsView engine={engine} watchClipboard={watchClipboard} onWatchClipboard={setWatchClipboard} />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <SettingsView
+              engine={engine}
+              watchClipboard={watchClipboard}
+              onWatchClipboard={setWatchClipboard}
+              schedule={schedule}
+              onSchedule={setSchedule}
+              quota={quota}
+              onQuota={setQuota}
+            />
+          </div>
         )}
       </main>
 
       <StatusBar engine={engine} />
       <Toasts toasts={engine.toasts} />
-      {adding !== null && <AddLinks key={addKey} engine={engine} initialText={adding} onClose={() => setAdding(null)} />}
+      {adding !== null && (
+        <AddLinks key={addKey} engine={engine} initialText={adding} onClose={() => setAdding(null)} />
+      )}
       {incoming.dropping && <DropOverlay />}
     </div>
   );

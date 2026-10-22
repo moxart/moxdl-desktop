@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 const SECONDS = 60; // how far back the graph goes
-const WIDTH = 96;
-const HEIGHT = 18;
 
-/** The total speed over the last minute, one point a second, as a small line. */
-export const SpeedGraph = ({ speed }: { speed: number }) => {
+/** A speed over the last minute, one point a second, as a line: the total, or one download's. */
+export const SpeedGraph = ({ speed, width: WIDTH = 96, height: HEIGHT = 18 }: { speed: number; width?: number; height?: number }) => {
   const latest = useRef(speed);
   latest.current = speed;
   const [points, setPoints] = useState<number[]>([]);

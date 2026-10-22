@@ -41,6 +41,13 @@ export const StatusBar = ({ engine }: { engine: Engine }) => {
       {state && <SpeedGraph speed={state.speed} />}
       {state && state.speed > 0 && <span className="tabular text-text">{humanSize(state.speed)}/s</span>}
       {focus && <span className="truncate text-accent">Only {focus.name}</span>}
+      {state?.gate === "schedule" && state.window && <span className="text-warn">Waiting for {state.window.from}</span>}
+      {state?.gate === "quota" && <span className="text-warn">Today's {humanSize(state.quota)} reached, until tomorrow</span>}
+      {state?.quota != null && state.gate !== "quota" && (
+        <span className="tabular">
+          Today {humanSize(state.today)} of {humanSize(state.quota)}
+        </span>
+      )}
       <span className="ml-auto" />
       {state?.free != null && (
         <span className="tabular" title="Free where downloads go">

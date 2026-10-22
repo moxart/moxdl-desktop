@@ -72,7 +72,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         emit({ type: "finished", id: d.id, status: "done", name: d.name, message: "", path: d.path });
       }
     }
-    emit({ type: "state", version: VERSION, downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit, free: 312 * 1024 * MB });
+    emit({ type: "state", version: VERSION, downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit, free: 312 * 1024 * MB, window: null, quota: null, today: 3.2 * 1024 * MB, gate: null });
   };
 
   const find = (id: number) => downloads.findIndex((d) => d.id === id);
