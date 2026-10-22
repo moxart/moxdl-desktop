@@ -14,15 +14,19 @@ target=$(rustc -vV | sed -n 's/^host: //p')
 extension=""
 case "$target" in *windows*) extension=".exe" ;; esac
 
-# PyInstaller in a venv of its own, kept out of the system Python.
-if [ ! -x .venv-engine/bin/pyinstaller ]; then
-    python3 -m venv .venv-engine
-    .venv-engine/bin/pip install --quiet pyinstaller
+# PyInstaller in a venv of its own, kept out of the system Python. Windows names the venv's
+# folder of programs Scripts, and its Python python, where the others say bin and python3.
+python="${PYTHON:-python3}"
+bin=.venv-engine/bin
+case "$target" in *windows*) bin=.venv-engine/Scripts ;; esac
+if [ ! -x "$bin/pyinstaller$extension" ]; then
+    "$python" -m venv .venv-engine
+    "$bin/python$extension" -m pip install --quiet pyinstaller
 fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-.venv-engine/bin/pyinstaller --onefile --name mox-engine --log-level WARN \
+"$bin/pyinstaller$extension" --onefile --name mox-engine --log-level WARN \
     --distpath "$work/dist" --workpath "$work/build" --specpath "$work" "$source"
 
 mkdir -p src-tauri/binaries
