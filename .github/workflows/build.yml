@@ -59,7 +59,10 @@ jobs:
         run: scripts/build-engine.sh moxdl/mox.py
       - name: Installers
         shell: bash
-        run: npx tauri build --config src-tauri/tauri.release.conf.json --bundles ${{ matrix.bundles }}
+        # Once more on failure: hdiutil on GitHub's Macs sometimes says "Resource busy" making the .dmg.
+        run: |
+          build() { npx tauri build --config src-tauri/tauri.release.conf.json --bundles ${{ matrix.bundles }}; }
+          build || { sleep 20; build; }
       - uses: actions/upload-artifact@v4
         with:
           name: mox-${{ matrix.os }}
@@ -85,6 +88,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Each artifact keeps its bundle/<kind>/ folder, so bring the installers up to one level.
+          find files -mindepth 2 -type f -exec mv {} files/ \;
+          find files -mindepth 1 -type d -delete
           cd files
           sha256sum * > SHA256SUMS
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease \
