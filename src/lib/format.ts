@@ -1,4 +1,4 @@
-import { localDigits } from "./i18n";
+import { currentLang, localDigits } from "./i18n";
 
 // A size or a speed is one unit: in Persian its Latin unit must not drift away from its number,
 // as in "MB / ۱٫۱ GB ۷۲۱٫۵". Isolated left to right, it reads "۷۲۱٫۵ MB" anywhere in a line.
@@ -43,6 +43,27 @@ const clock = (seconds: number): string => {
 
 export const percent = (done: number, total: number | null): string =>
   total ? localDigits(`${((100 * done) / total).toFixed(1)}%`) : "";
+
+const DAY_MS = 24 * 3600_000;
+
+/**
+ * The time of day so many seconds from now: "23:55", with the weekday when it is not today, and
+ * the date too when it is more than a week away. In Persian, with Persian digits and day names.
+ */
+export const clockIn = (seconds: number | null | undefined): string => {
+  if (seconds == null || !Number.isFinite(seconds)) return "";
+  const now = new Date();
+  const at = new Date(now.getTime() + seconds * 1000);
+  const locale = currentLang() === "fa" ? "fa-IR" : undefined;
+  const far = at.getTime() - now.getTime() > 6 * DAY_MS;
+  return new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23", // 01:32 rather than 01:32 AM: shorter, and the same in both languages
+    ...(at.toDateString() !== now.toDateString() && { weekday: "short" }),
+    ...(far && { month: "short", day: "numeric" }),
+  }).format(at);
+};
 
 /** A count or a time of day, in the language's digits. */
 export const num = (value: number | string): string => localDigits(String(value));

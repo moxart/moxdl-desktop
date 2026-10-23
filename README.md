@@ -10,11 +10,16 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Pause, resume, and survive reboots and internet outages.
 - Drag downloads into the order you want, or give one all the speed.
 - Keyboard shortcuts, search, and a details panel with the piece map, the speed graph and the link.
-- Download only between certain hours, or up to so much a day, and quit, sleep or shut down when everything is done.
+- When each file and the whole queue will be done, by the clock.
+- Made for night plans and a shaky connection: download only between certain hours, or up to so much a day; slower by day, or while someone uses the computer (the cup in the status bar); a plain note when the internet is down; quit, sleep or shut down when everything is done.
+- Before it starts: the size of every link and the broken ones, a warning when they will not fit on the disk, and files you already have left out, with a question. A download that runs out of disk space waits for room instead of failing.
+- After a file is done: open it, move it to a folder, or run a command on it, such as a virus scan.
 - Watch a video while it downloads.
-- Add links from the browser's right-click menu, by dropping them on the window, or by pasting text with links in it. Links copied a moment ago are offered when the window comes to the front.
+- Downloads clicked in the browser start here at once, with the site's login if you allow it. Add links from the right-click menu, by dropping them on the window or on a small floating pomegranate, by pasting, or with Ctrl+Shift+M from any program. Links copied a moment ago are offered when the window comes to the front.
+- Send links from your phone: scan a QR code, and a page on your Wi-Fi adds links and shows the downloads.
 - Series sorted into a folder per show and season.
-- History, and the same settings as `mox config`.
+- History with a chart of the last 30 days, and the same settings as `mox config`.
+- A short welcome on the first run: language, look, the browser extension, a night plan.
 - Lives in the tray, and can start with the computer.
 - Updates itself: it offers a new version, and installs it when you say so.
 - In English or Persian, dark or light.
@@ -26,26 +31,32 @@ Built with Tauri 2, React and Tailwind. Linux, Windows and macOS.
 From a [release](https://github.com/moxart/moxdl-desktop/releases), on Linux:
 
 ```bash
-sudo apt install ./Mox_0.4.0_amd64.deb      # Debian, Ubuntu
-chmod +x Mox_0.4.0_amd64.AppImage && ./Mox_0.4.0_amd64.AppImage   # any distribution
+sudo apt install ./Mox_0.5.0_amd64.deb      # Debian, Ubuntu
+chmod +x Mox_0.5.0_amd64.AppImage && ./Mox_0.5.0_amd64.AppImage   # any distribution
 ```
 
-On Windows run `Mox_0.4.0_x64-setup.exe`; on a Mac open `Mox_0.4.0_aarch64.dmg` (Apple silicon) or `Mox_0.4.0_x64.dmg` (Intel). The installers are not signed yet, so Windows shows a SmartScreen warning (More info → Run anyway), and macOS needs a right-click → Open the first time.
+On Windows run `Mox_0.5.0_x64-setup.exe`; on a Mac open `Mox_0.5.0_aarch64.dmg` (Apple silicon) or `Mox_0.5.0_x64.dmg` (Intel). The installers are not signed yet, so Windows shows a SmartScreen warning (More info → Run anyway), and macOS needs a right-click → Open the first time.
 
 Mox is built into the app, so nothing else is needed: no Python, no separate install.
 
 ## From the browser
 
-The extension in [`browser-extension/`](browser-extension) takes over the browser's downloads and sends them to Mox, as IDM does. Files the browser knows to be under 1 MB stay with the browser, and so does a download you start again within a minute of handing it to Mox: that is the way to let the browser have one, say from a site that needs your login. Its toolbar button turns this off and on.
+The extension in [`browser-extension/`](browser-extension) takes over the browser's downloads and sends them to Mox, as IDM does, where they start at once. Files the browser knows to be under 1 MB stay with the browser, and so does a download you start again within a minute of handing it to Mox: that is the way to let the browser have one. Its toolbar button turns this off and on.
 
 It also adds three items to the right-click menu of Firefox and Chrome: **Download with Mox** on a link, one for the links in selected text, and one for every file link on the page, such as a folder listing.
 
-Either way it sends them to the app as a `mox://` link, and the app shows them in its add dialog. Nothing downloads before you press Download there, since any web page can open a `mox://` link too.
+How it reaches the app:
+
+- The app listens on `127.0.0.1` (ports 6691 to 6693) for browser extensions alone: it checks each request's `Origin`, which a web page cannot fake, and its `Host`, against DNS rebinding. Links sent there start at once, with the browser's Referer and User-Agent.
+- With **Send cookies** on, in the extension's options, the site's cookies go along too, so a download that needs a login works. The browser asks for that permission once; cookies go only to Mox on this computer, only for the download's own site, and never from a private window. Mox keeps its list readable by your user alone, since it can hold them.
+- When the app is not running, the extension opens a `mox://` link instead, which starts it. Since any web page can open such a link, those links wait in the add dialog until you press Download.
+
+The installers carry the extension; the welcome on the first run shows its folder. To load it:
 
 - **Chrome, Edge, Brave:** open `chrome://extensions`, turn on Developer mode, press Load unpacked, and pick the `browser-extension` folder.
-- **Firefox:** open `about:debugging#/runtime/this-firefox`, press Load Temporary Add-on, and pick `browser-extension/manifest.json`. It stays until Firefox restarts; for good it needs signing by Mozilla.
+- **Firefox 128 or later:** open `about:debugging#/runtime/this-firefox`, press Load Temporary Add-on, and pick `browser-extension/manifest.json`. It stays until Firefox restarts; for good it needs signing by Mozilla.
 
-The first time, the browser asks whether to let it open Mox. `npm run extension` zips it for a store.
+`npm run extension` zips it for a store.
 
 ## Build it
 
@@ -93,6 +104,8 @@ React (src/)  ⇄  Tauri shell (src-tauri/src/lib.rs)  ⇄  mox engine (mox.py)
 ## Not done yet
 
 - Signed installers, so Windows and macOS stop warning about them.
+- The extension in the Chrome Web Store and on addons.mozilla.org.
+- Ctrl+Shift+M and the floating pomegranate under Wayland, which lets no program take a key for itself or keep a window on top.
 - Reading the clipboard while the window is in the background: on Wayland that takes focus for a moment, so links are offered when the window comes to the front instead.
 
 ## License

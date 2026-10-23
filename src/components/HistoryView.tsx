@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Engine } from "../engine/useEngine";
 import { humanSize, num } from "../lib/format";
 import { useT } from "../lib/i18n";
+import { UsageChart } from "./UsageChart";
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-card border border-line bg-surface px-4 py-3">
@@ -37,6 +38,10 @@ export const HistoryView = ({ engine }: { engine: Engine }) => {
         <Stat label={t.last30} value={humanSize(month)} />
       </section>
 
+      {history.enabled && history.daily && (
+        <UsageChart daily={history.daily} today={engine.state?.today ?? null} quota={engine.state?.quota ?? null} />
+      )}
+
       <section className="flex flex-wrap gap-2">
         {[...kinds.entries()]
           .sort((a, b) => b[1].count - a[1].count)
@@ -65,7 +70,7 @@ export const HistoryView = ({ engine }: { engine: Engine }) => {
               .map((e, i) => (
               <tr key={i} className="border-b border-line/60">
                 <td className="py-2 pe-4 text-muted tabular whitespace-nowrap">{num(e.time.replace("T", " ").slice(0, 16))}</td>
-                <td dir="auto" className="max-w-0 w-full truncate py-2 pe-4 text-start" title={e.path}>
+                <td dir="auto" className="max-w-0 w-full truncate px-4 py-2 text-start" title={e.path}>
                   {e.name}
                 </td>
                 <td className="py-2 pe-4 capitalize text-muted">{t.kinds[e.kind] ?? e.kind}</td>

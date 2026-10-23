@@ -29,7 +29,8 @@ const listeners = new Set<() => void>();
 const apply = () => {
   const dark = choice === "dark" || (choice === "system" && systemDark.matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
-  if (!("__TAURI_INTERNALS__" in window)) return;
+  // Outside the app there is no window to tell; the drop target's own is see-through, and stays so.
+  if (!("__TAURI_INTERNALS__" in window) || new URLSearchParams(location.search).has("dropzone")) return;
   const win = getCurrentWindow();
   win.setTheme(choice === "system" ? null : choice).catch(() => {});
   // What shows for a moment while the window resizes, before the page catches up.

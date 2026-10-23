@@ -1,11 +1,15 @@
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { type ReactNode, useEffect, useState } from "react";
 
-import type { Quota, Schedule } from "../App";
+import type { Quota, Schedule, Slow } from "../App";
 import type { Engine } from "../engine/useEngine";
+import type { Phone } from "../engine/usePhone";
+import type { System } from "../engine/useSystem";
 import type { Updates } from "../engine/useUpdates";
+import { rate } from "../lib/format";
 import { type LangChoice, setLanguage, useLanguageChoice, useT } from "../lib/i18n";
 import { type ThemeChoice, setTheme, useThemeChoice } from "../lib/theme";
+import { PhoneSettings } from "./PhoneSettings";
 import { Select } from "./Select";
 
 // Settings are mox's own (mox config), shared with the terminal: changing one here changes it there.
@@ -41,7 +45,26 @@ type SettingsViewProps = {
   quota: Quota;
   onQuota: (quota: Quota) => void;
   updates: Updates;
+  phone: Phone;
+  slow: Slow;
+  onSlow: (slow: Slow) => void;
+  system: System;
+  onWelcome: () => void;
 };
+
+// The speeds offered for the slow hours and the polite mode.
+const LOWER = [256, 512, 1024, 2048, 5120].map((kb) => kb * 1024);
+
+/** A speed to choose, in the language's digits: "512 KB/s". */
+const SpeedSelect = ({ value, onChange, label }: { value: number; onChange: (bytes: number) => void; label: string }) => (
+  <Select
+    className="w-32"
+    label={label}
+    value={String(value)}
+    options={(LOWER.includes(value) ? LOWER : [...LOWER, value].sort((a, b) => a - b)).map((v) => [rate(v, true), String(v)])}
+    onChange={(v) => onChange(Number(v))}
+  />
+);
 
 const inputClass = "rounded-control border border-line bg-bg px-2 py-1 text-sm tabular outline-none focus:border-accent";
 
@@ -57,7 +80,15 @@ const Setting = ({ label, about, children }: { label: string; about: string; chi
 );
 
 /** When downloads may run: only between two times, and only up to so much a day. */
-const WhenToDownload = ({ schedule, onSchedule, quota, onQuota }: Pick<SettingsViewProps, "schedule" | "onSchedule" | "quota" | "onQuota">) => {
+const WhenToDownload = ({
+  schedule,
+  onSchedule,
+  quota,
+  onQuota,
+  slow,
+  onSlow,
+  system,
+}: Pick<SettingsViewProps, "schedule" | "onSchedule" | "quota" | "onQuota" | "slow" | "onSlow" | "system">) => {
   const t = useT();
   return (
     <div className="mb-8 space-y-4">
@@ -107,6 +138,69 @@ const WhenToDownload = ({ schedule, onSchedule, quota, onQuota }: Pick<SettingsV
           {t.gb}
         </span>
       </div>
+      <div className="flex items-start justify-between gap-6">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={slow.on}
+            onChange={(e) => onSlow({ ...slow, on: e.target.checked })}
+            className="mt-1 size-4 accent-accent"
+          />
+          <span>
+            <span className="block text-sm">{t.slowOn}</span>
+            <span className="block text-xs text-muted">{t.slowAbout}</span>
+          </span>
+        </label>
+        <span className="flex shrink-0 flex-col items-end gap-2 text-sm text-muted">
+          <span className="flex items-center gap-2">
+            <input type="time" dir="ltr" value={slow.from} onChange={(e) => onSlow({ ...slow, from: e.target.value })} className={inputClass} aria-label={t.from} />
+            {t.to}
+            <input type="time" dir="ltr" value={slow.until} onChange={(e) => onSlow({ ...slow, until: e.target.value })} className={inputClass} aria-label={t.until} />
+          </span>
+          <span className="flex items-center gap-2">
+            {t.atMost}
+            <SpeedSelect value={slow.limit} onChange={(limit) => onSlow({ ...slow, limit })} label={t.slowOn} />
+          </span>
+        </span>
+      </div>
+      <div className="flex items-start justify-between gap-6">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={system.polite.on}
+            onChange={(e) => system.setPolite({ ...system.polite, on: e.target.checked })}
+            className="mt-1 size-4 accent-accent"
+          />
+          <span>
+            <span className="block text-sm">{t.politeOn}</span>
+            <span className="block text-xs text-muted">{t.politeAbout}</span>
+            {system.polite.on && !system.politeKnown && <span className="mt-1 block text-xs text-warn">{t.politeUnknown}</span>}
+          </span>
+        </label>
+        <span className="flex shrink-0 items-center gap-2 text-sm text-muted">
+          {t.atMost}
+          <SpeedSelect
+            value={system.polite.limit}
+            onChange={(limit) => system.setPolite({ ...system.polite, limit })}
+            label={t.politeOn}
+          />
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/** Ctrl+Shift+M from anywhere, and the floating drop target. */
+const Shortcuts = ({ system }: { system: System }) => {
+  const t = useT();
+  return (
+    <div className="mb-8 space-y-4">
+      <Switch label={t.browserStartOn} about={t.browserStartAbout} checked={system.browserStart} onChange={system.setBrowserStart} />
+      <Switch label={t.hotkeyOn} about={t.hotkeyAbout} checked={system.hotkey} onChange={system.setHotkey} />
+      {system.hotkey && (
+        <p className={system.hotkeyProblem ? "text-xs text-danger" : "text-xs text-faint"}>{system.hotkeyProblem || t.hotkeyWayland}</p>
+      )}
+      <Switch label={t.dropzoneOn} about={t.dropzoneAbout} checked={system.dropzone} onChange={system.setDropzone} />
     </div>
   );
 };
@@ -176,7 +270,21 @@ const UpdateSettings = ({ updates }: { updates: Updates }) => {
   );
 };
 
-export const SettingsView = ({ engine, watchClipboard, onWatchClipboard, schedule, onSchedule, quota, onQuota, updates }: SettingsViewProps) => {
+export const SettingsView = ({
+  engine,
+  watchClipboard,
+  onWatchClipboard,
+  schedule,
+  onSchedule,
+  quota,
+  onQuota,
+  updates,
+  phone,
+  slow,
+  onSlow,
+  system,
+  onWelcome,
+}: SettingsViewProps) => {
   const t = useT();
   const { config, send } = engine;
   const [startAtLogin, setStartAtLogin] = useStartAtLogin();
@@ -215,9 +323,26 @@ export const SettingsView = ({ engine, watchClipboard, onWatchClipboard, schedul
           <Switch label={t.startAtLogin} about={t.startAtLoginAbout} checked={startAtLogin} onChange={setStartAtLogin} />
         )}
         {IN_APP && <UpdateSettings updates={updates} />}
+        <Setting label={t.showWelcome} about={t.showWelcomeAbout}>
+          <button type="button" onClick={onWelcome} className="rounded-control bg-raised px-3 py-1.5 text-text hover:bg-hover">
+            {t.show}
+          </button>
+        </Setting>
       </div>
       <h2 className="mb-3 text-sm font-semibold">{t.whenToDownload}</h2>
-      <WhenToDownload schedule={schedule} onSchedule={onSchedule} quota={quota} onQuota={onQuota} />
+      <WhenToDownload
+        schedule={schedule}
+        onSchedule={onSchedule}
+        quota={quota}
+        onQuota={onQuota}
+        slow={slow}
+        onSlow={onSlow}
+        system={system}
+      />
+      <h2 className="mb-3 text-sm font-semibold">{t.shortcuts}</h2>
+      <Shortcuts system={system} />
+      <h2 className="mb-3 text-sm font-semibold">{t.fromPhone}</h2>
+      <PhoneSettings phone={phone} />
       <h2 className="mb-1 text-sm font-semibold">{t.moxSettings}</h2>
       <p className="mb-5 text-sm text-muted">
         {before}

@@ -1,10 +1,12 @@
 import {
+  AlarmClock,
   AlertTriangle,
   ArrowDown,
   Check,
   ChevronsUp,
   Clock,
   Folder,
+  HardDrive,
   Pause,
   Play,
   RotateCw,
@@ -16,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 
 import type { Command, Download } from "../engine/types";
-import { cn, humanSize, humanTime, num, percent, rate } from "../lib/format";
+import { clockIn, cn, humanSize, humanTime, num, percent, rate } from "../lib/format";
 import { type Messages, useT } from "../lib/i18n";
 import { IconButton } from "./IconButton";
 import { PieceBar } from "./PieceBar";
@@ -48,14 +50,20 @@ const StatusIcon = ({ download }: { download: Download }) => {
   if (status === "done") return <Check className="size-4 text-ok" />;
   if (status === "error") return <AlertTriangle className="size-4 text-danger" />;
   if (status === "held" || status === "paused") return <Pause className="size-4 text-warn" />;
+  if (status === "nospace") return <HardDrive className="size-4 text-warn" />;
   return <Clock className="size-4 text-faint" />;
 };
+
+// What mox says while the internet is down, as mox.py has it in OFFLINE_MESSAGE.
+const OFFLINE = "no internet, waiting for it to come back";
 
 const note = (t: Messages, d: Download, place: number | null): string => {
   if (d.status === "done") return d.path ?? "";
   if (d.status === "error") return d.expired ? `${d.message}. ${t.freshLinkHint}` : d.message;
   if (d.status === "held") return t.paused;
+  if (d.status === "nospace") return t.noSpaceNote(d.message);
   if (d.status === "waiting") return place === 1 ? t.next : place ? t.waitingPlace(place) : t.waiting;
+  if (d.message === OFFLINE) return t.offlineRow;
   if (d.message) return d.message;
   if (d.stream && d.ready && d.total) return t.playableTo(`${num(Math.floor((100 * d.ready) / d.total))}%`);
   return "";
@@ -111,13 +119,19 @@ export const DownloadRow = (props: DownloadRowProps) => {
           <PieceBar pieces={d.pieces} active={running} done={d.status === "done"} />
         </div>
         <div className="mt-1.5 flex gap-4 text-xs text-muted">
-          <span dir="auto" className={cn("truncate", d.status === "error" && "text-danger", held && "text-warn")}>{note(t, d, place)}</span>
+          <span dir="auto" className={cn("truncate", d.status === "error" && "text-danger", (held || d.status === "nospace") && "text-warn")}>{note(t, d, place)}</span>
           <span className="ms-auto flex shrink-0 gap-4 tabular">
             {!finished && <span>{percent(d.done, d.total)}</span>}
             {d.status === "downloading" && !d.message && (
               <>
                 <span>{rate(d.speed)}</span>
                 <span>{humanTime(d.eta)}</span>
+                {d.eta != null && (
+                  <span className="inline-flex items-center gap-1 text-faint" title={t.finishesAt}>
+                    <AlarmClock className="size-3" />
+                    {clockIn(d.eta)}
+                  </span>
+                )}
                 <span className="text-faint">{num(d.connections)}×</span>
               </>
             )}

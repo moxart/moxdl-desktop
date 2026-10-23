@@ -1,0 +1,245 @@
+<!doctype html>
+<!--
+  The page a phone opens from the QR code in Mox's settings (see src/remote.rs): send links to
+  Mox on the computer and follow the downloads. One file, nothing loaded from elsewhere, since it
+  is served on the home network.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#141113">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>Mox</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #141113; --surface: #1c1719; --raised: #251f21; --line: #352c2f;
+    --text: #ede6e3; --muted: #a59c9e; --faint: #8a7f82;
+    --accent: #e54852; --accent-text: #f27a83; --ok: #7dbe8a; --warn: #e2b062; --danger: #ff7a59;
+    --piece: #2b2326;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #f8f4f2; --surface: #fffdfc; --raised: #efe8e5; --line: #e3d9d6;
+      --text: #21191b; --muted: #665a5d; --faint: #74676a;
+      --accent: #c42e3b; --accent-text: #b02633; --ok: #2e7a45; --warn: #8f6312; --danger: #c2410c;
+      --piece: #ebe1de;
+    }
+  }
+  * { box-sizing: border-box; min-width: 0; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 500 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Vazirmatn, Tahoma, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  main { max-width: 560px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; font: 400 26px/1 Georgia, serif; color: var(--muted); }
+  .brand img { width: 22px; height: 22px; transform: translateY(2px); }
+  .speed { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  textarea {
+    width: 100%; min-height: 104px; resize: vertical; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--bg); color: var(--text); padding: 10px 12px; font: 16px/1.5 ui-monospace, Menlo, monospace;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea::placeholder { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Vazirmatn, Tahoma, sans-serif; color: var(--faint); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  li .row { flex-wrap: nowrap; }
+  .between { justify-content: space-between; }
+  label.check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+  input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+  button {
+    font: inherit; border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer;
+    background: var(--raised); color: var(--text);
+  }
+  button:active { transform: scale(0.97); }
+  .primary {
+    font-weight: 700; padding-inline: 22px; color: var(--accent-text);
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  .primary:disabled { opacity: .5; }
+  .note { min-height: 20px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .note.bad { color: var(--danger); }
+  .note.good { color: var(--ok); }
+  h2 { font-size: 14px; margin: 22px 2px 10px; color: var(--muted); font-weight: 700; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: start; unicode-bidi: plaintext; }
+  .bar { height: 6px; border-radius: 99px; background: var(--piece); overflow: hidden; margin: 9px 0 7px; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .6s ease; }
+  .done .bar i { background: var(--ok); }
+  .meta { flex: 1; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  li button, #all, #send { flex-shrink: 0; }
+  .meta .bad { color: var(--danger); } .meta .warn { color: var(--warn); }
+  .small { padding: 6px 12px; font-size: 13px; }
+  .empty { color: var(--faint); text-align: center; padding: 24px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="brand" dir="ltr">m<img src="/icon.png" alt="">x</span>
+    <span class="speed" id="speed"></span>
+  </header>
+
+  <section class="card">
+    <textarea id="links" dir="auto" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="row between" style="margin-top:10px">
+      <label class="check"><input type="checkbox" id="first"><span id="first-label"></span></label>
+      <button class="primary" id="send" disabled></button>
+    </div>
+    <div class="note" id="note"></div>
+  </section>
+
+  <div class="row between">
+    <h2 id="list-title"></h2>
+    <button class="small" id="all" hidden></button>
+  </div>
+  <ul id="list"></ul>
+</main>
+
+<script>
+  const FA = (navigator.language || "").toLowerCase().startsWith("fa");
+  const T = FA ? {
+    paste: "لینک‌ها را اینجا بچسبانید، هر کدام در یک خط",
+    first: "اول صف", send: "دانلود", sent: (n) => `${n} لینک فرستاده شد`,
+    list: "دانلودها", none: "دانلودی در کار نیست",
+    pauseAll: "توقف همه", resumeAll: "ادامهٔ همه", pause: "توقف", resume: "ادامه",
+    waiting: "در صف", paused: "متوقف", done: "تمام شد", failed: "ناموفق", connecting: "در حال اتصال",
+    unreachable: "به Mox دسترسی نیست. کامپیوتر روشن است و هر دو روی یک Wi-Fi هستید؟",
+    wrongKey: "این نشانی کهنه است. QR کد را در تنظیمات Mox دوباره اسکن کنید.",
+    noKey: "این صفحه را با اسکن QR کد در تنظیمات Mox باز کنید.",
+  } : {
+    paste: "Paste links here, one per line",
+    first: "First in line", send: "Download", sent: (n) => `${n} sent`,
+    list: "Downloads", none: "Nothing downloading",
+    pauseAll: "Pause all", resumeAll: "Resume all", pause: "Pause", resume: "Continue",
+    waiting: "Waiting", paused: "Paused", done: "Done", failed: "Failed", connecting: "Connecting",
+    unreachable: "Mox cannot be reached. Is the computer on, and are both on the same Wi-Fi?",
+    wrongKey: "This address is out of date. Scan the QR code in Mox's settings again.",
+    noKey: "Open this page by scanning the QR code in Mox's settings.",
+  };
+  if (FA) { document.documentElement.lang = "fa"; document.documentElement.dir = "rtl"; }
+
+  const $ = (id) => document.getElementById(id);
+  const digits = (s) => FA ? String(s).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]).replace(/([۰-۹])\.(?=[۰-۹])/g, "$1٫").replace(/%/g, "٪") : String(s);
+  const size = (n) => {
+    if (n == null) return "?";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0;
+    while (Math.abs(n) >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return digits(i ? n.toFixed(1) : n.toFixed(0)) + " " + units[i];
+  };
+  // A size or a speed is one unit: isolated left to right, its Latin unit stays by its number in Persian.
+  const whole = (text) => "\u2066" + text + "\u2069";
+  const clock = (s) => {
+    if (s == null) return "";
+    s = Math.round(s);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, "0");
+    return digits(h ? `${h}:${String(m).padStart(2, "0")}:${r}` : `${String(m).padStart(2, "0")}:${r}`);
+  };
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+  // The key comes in the #fragment, which is never sent to a server; it is kept for the next visit.
+  const fromHash = location.hash.slice(1);
+  if (/^[0-9a-f]{32}$/.test(fromHash)) localStorage.setItem("mox-key", fromHash);
+  const KEY = localStorage.getItem("mox-key") || "";
+
+  $("links").placeholder = T.paste;
+  $("first-label").textContent = T.first;
+  $("send").textContent = T.send;
+  $("list-title").textContent = T.list;
+
+  const note = (text, tone) => { $("note").textContent = text; $("note").className = "note" + (tone ? " " + tone : ""); };
+  const api = async (path, body) => {
+    const response = await fetch("/api/" + path, {
+      method: body ? "POST" : "GET",
+      headers: { "X-Mox-Key": KEY, ...(body && { "Content-Type": "application/json" }) },
+      body: body && JSON.stringify(body),
+    });
+    if (response.status === 403) throw new Error(T.wrongKey);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    return data;
+  };
+
+  const count = () => ($("links").value.match(/\S+:\/\/\S+/g) || []).length;
+  $("links").addEventListener("input", () => { $("send").disabled = !count(); });
+  $("first").checked = localStorage.getItem("mox-first") === "on";
+  $("first").addEventListener("change", (e) => localStorage.setItem("mox-first", e.target.checked ? "on" : "off"));
+
+  $("send").addEventListener("click", async () => {
+    const n = count();
+    $("send").disabled = true;
+    try {
+      await api("add", { text: $("links").value, first: $("first").checked });
+      $("links").value = "";
+      note(T.sent(digits(n)), "good");
+      refresh();
+    } catch (error) {
+      note(error.message === "Failed to fetch" ? T.unreachable : error.message, "bad");
+      $("send").disabled = false;
+    }
+  });
+
+  let allHeld = false;
+  $("all").addEventListener("click", () => api("cmd", { cmd: "hold_all", on: !allHeld }).then(refresh, () => {}));
+  $("list").addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-id]");
+    if (button) api("cmd", { cmd: "hold", id: Number(button.dataset.id), on: button.dataset.on === "1" }).then(refresh, () => {});
+  });
+
+  const RUNNING = ["connecting", "downloading", "verifying"];
+  const show = (state) => {
+    const downloads = state.downloads || [];
+    $("speed").textContent = state.speed > 0 ? whole(size(state.speed) + "/s") : "";
+    const unfinished = downloads.filter((d) => d.status !== "done" && d.status !== "error");
+    allHeld = unfinished.length > 0 && unfinished.every((d) => d.status === "held");
+    $("all").hidden = unfinished.length === 0;
+    $("all").textContent = allHeld ? T.resumeAll : T.pauseAll;
+    if (!downloads.length) { $("list").innerHTML = `<li class="empty">${T.none}</li>`; return; }
+    $("list").innerHTML = downloads.map((d) => {
+      const part = d.total ? Math.min(100, (100 * d.done) / d.total) : 0;
+      const finished = d.status === "done" || d.status === "error";
+      const running = RUNNING.includes(d.status);
+      const held = d.status === "held";
+      const what = d.status === "done" ? T.done
+        : d.status === "error" ? `<span class="bad">${esc(d.message || T.failed)}</span>`
+        : held ? `<span class="warn">${T.paused}</span>`
+        : d.status === "waiting" ? T.waiting
+        : d.status === "connecting" ? T.connecting
+        : [digits(part.toFixed(1) + "%"), whole(size(d.speed) + "/s"), clock(d.eta)].filter(Boolean).join(" · ");
+      const amount = finished ? whole(size(d.total ?? d.done)) : `${whole(size(d.done))} / ${whole(size(d.total))}`;
+      const button = finished ? "" :
+        `<button class="small" data-id="${d.id}" data-on="${held ? 0 : 1}">${held ? T.resume : T.pause}</button>`;
+      return `<li class="${d.status === "done" ? "done" : ""}">
+        <div class="name">${esc(d.name)}</div>
+        <div class="bar"><i style="width:${d.status === "done" ? 100 : part}%"></i></div>
+        <div class="row between"><span class="meta">${what}<br>${amount}</span>${button}</div>
+      </li>`;
+    }).join("");
+  };
+
+  let failing = false;
+  const refresh = async () => {
+    try {
+      show(await api("state"));
+      if (failing) note("");
+      failing = false;
+    } catch (error) {
+      failing = true;
+      note(error.message === "Failed to fetch" || error.name === "TypeError" ? T.unreachable : error.message, "bad");
+    }
+  };
+  if (!KEY) note(T.noKey, "bad");
+  else { refresh(); setInterval(refresh, 1500); }
+</script>
+</body>
+</html>

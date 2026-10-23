@@ -8,7 +8,8 @@ export type Status =
   | "verifying"
   | "done"
   | "error"
-  | "paused";
+  | "paused"
+  | "nospace"; // waiting for disk space; starts again by itself once there is room
 
 export type Download = {
   id: number;
@@ -27,7 +28,11 @@ export type Download = {
   ready: number | null;
   pieces: number[] | null; // 0 to 3: how much of each cell of the file is on disk
   expired: boolean;
+  then: Then;
 };
+
+/** What to do with a file once done, in this order: move it, open it, run a command on it. */
+export type Then = { open?: boolean; move?: string; run?: string };
 
 export type EngineState = {
   version: string;
@@ -41,6 +46,10 @@ export type EngineState = {
   quota: number | null; // bytes a day
   today: number; // bytes received today
   gate: "schedule" | "quota" | null; // why nothing runs now
+  slow: (Window & { limit: number }) | null; // a lower limit between those times
+  rate: number | null; // the limit in force now
+  lowered: "slow" | "polite" | null; // why rate is below limit
+  offline: number | null; // seconds since the internet went down
 };
 
 export type Window = { from: string; until: string }; // "02:00", "07:00"
@@ -57,6 +66,7 @@ export type HistoryEntry = {
 export type History = {
   entries: HistoryEntry[];
   traffic: [number, number, number] | null; // today, 7 days, 30 days
+  daily: [string, number][]; // [date, bytes] for each of the last 30 days, today last
   enabled: boolean;
 };
 
@@ -75,10 +85,40 @@ export type EngineEvent =
   | { type: "clipboard"; urls: string[]; tool: string | null; files: boolean }
   | ({ type: "config" } & Config)
   | ({ type: "history" } & History)
+  | { type: "known"; items: KnownFile[] }
+  | ({ type: "checked" } & Check)
+  | { type: "check_done"; count: number; free: number | null }
   | { type: "error"; text: string };
 
+/** A file downloaded before and still on disk, left out of an add. */
+export type KnownFile = { url: string; name: string; path: string; time: string | null; size: number | null };
+
+/** What a server said about a link, asked before downloading. */
+export type Check = {
+  url: string;
+  ok: boolean;
+  size?: number | null;
+  name?: string;
+  ranges?: boolean;
+  message?: string;
+  expired?: boolean;
+};
+
 export type Command =
-  | { cmd: "add"; text?: string; urls?: string[]; dir?: string; sort?: boolean; stream?: boolean; first?: boolean }
+  | {
+      cmd: "add";
+      text?: string;
+      urls?: string[];
+      dir?: string;
+      sort?: boolean;
+      stream?: boolean;
+      first?: boolean;
+      then?: Then;
+      skip_known?: boolean;
+      headers?: Record<string, string>;
+    }
+  | { cmd: "then"; id: number; then: Then }
+  | { cmd: "check"; text?: string; urls?: string[]; dir?: string }
   | { cmd: "hold"; id: number; on: boolean }
   | { cmd: "hold_all"; on: boolean }
   | { cmd: "next"; id: number }
@@ -90,7 +130,14 @@ export type Command =
   | { cmd: "clear" }
   | { cmd: "open"; id: number }
   | { cmd: "reveal"; id: number }
-  | { cmd: "set"; jobs?: number; limit?: string | number | null; window?: Window | null; quota?: number | null }
+  | {
+      cmd: "set";
+      jobs?: number;
+      limit?: string | number | null;
+      window?: Window | null;
+      quota?: number | null;
+      slow?: (Window & { limit: number }) | null;
+    }
   | { cmd: "clipboard"; files?: boolean }
   | { cmd: "config" }
   | { cmd: "config_set"; key: string; value: string | null }

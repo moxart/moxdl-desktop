@@ -9,10 +9,12 @@ import "@fontsource/yeseva-one/latin-400.css"; // the name in the logo only
 import "./lib/i18n";
 import "./lib/theme";
 import { App } from "./App";
+import { DropZone } from "./components/DropZone";
 import "./styles.css";
 
+// The floating drop target is a window of its own, with the same page and ?dropzone.
+const DROPZONE = new URLSearchParams(location.search).has("dropzone");
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <React.StrictMode>{DROPZONE ? <DropZone /> : <App />}</React.StrictMode>,
 );

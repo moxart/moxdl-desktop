@@ -1,10 +1,10 @@
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { Copy, Folder, Link2, X } from "lucide-react";
+import { Copy, Folder, Link2, Sparkles, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
-import type { Command, Download } from "../engine/types";
-import { cn, humanSize, humanTime, num, percent, rate } from "../lib/format";
-import { useT } from "../lib/i18n";
+import type { Command, Download, Then } from "../engine/types";
+import { clockIn, cn, humanSize, humanTime, num, percent, rate } from "../lib/format";
+import { type Messages, useT } from "../lib/i18n";
 import { SpeedGraph } from "./SpeedGraph";
 
 type DetailsProps = {
@@ -22,6 +22,16 @@ const Row = ({ label, children }: { label: string; children: ReactNode }) => (
     <span className="min-w-0 truncate text-end tabular">{children}</span>
   </div>
 );
+
+/** What happens once it is done, in words: "move it to ~/Videos, run clamscan". */
+const thenInWords = (t: Messages, then: Then): string =>
+  [
+    then.move && t.thenSummary.move(then.move),
+    then.open && t.thenSummary.open,
+    then.run && t.thenSummary.run(then.run),
+  ]
+    .filter(Boolean)
+    .join(t.comma);
 
 /** Everything about one download, beside the list: press I, or double-click a row. */
 export const Details = ({ download: d, send, onClose }: DetailsProps) => {
@@ -52,8 +62,8 @@ export const Details = ({ download: d, send, onClose }: DetailsProps) => {
       <div className="flex items-start gap-3 border-b border-line p-4">
         <div className="min-w-0 flex-1">
           <h2 dir="auto" className="break-all font-semibold leading-snug">{d.name}</h2>
-          <p className={cn("mt-1 text-xs", d.status === "error" ? "text-danger" : "text-muted")}>
-            {d.status === "error" ? d.message : t.status[d.status]}
+          <p className={cn("mt-1 text-xs", d.status === "error" ? "text-danger" : d.status === "nospace" ? "text-warn" : "text-muted")}>
+            {d.status === "error" ? d.message : d.status === "nospace" ? t.noSpaceNote(d.message) : t.status[d.status]}
             {d.total && d.status !== "done" ? ` · ${percent(d.done, d.total)}` : ""}
           </p>
         </div>
@@ -92,6 +102,7 @@ export const Details = ({ download: d, send, onClose }: DetailsProps) => {
             {d.status === "done" ? humanSize(d.total ?? d.done) : t.sizeOf(humanSize(d.done), humanSize(d.total))}
           </Row>
           {running && <Row label={t.timeLeft}>{humanTime(d.eta)}</Row>}
+          {running && d.eta != null && <Row label={t.finishesAt}>{t.finishesAbout(clockIn(d.eta))}</Row>}
           {running && <Row label={t.connections}>{num(d.connections)}</Row>}
           <Row label={t.kind}>{t.kinds[d.kind] ?? d.kind}</Row>
           {d.stream && d.ready != null && d.total && <Row label={t.playableToLabel}>{percent(d.ready, d.total)}</Row>}
@@ -106,6 +117,25 @@ export const Details = ({ download: d, send, onClose }: DetailsProps) => {
           </div>
           <p dir="ltr" className="break-all rounded-control bg-bg p-2 font-mono text-xs text-muted select-text">{d.url}</p>
         </div>
+
+        {(d.then.move || d.then.open || d.then.run) && d.status !== "done" && (
+          <div className="flex items-start gap-2 rounded-control bg-bg p-2 text-xs">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-accent" />
+            <span className="min-w-0 flex-1 break-words">
+              <span className="text-muted">{t.thenNow}: </span>
+              <span dir="auto">{thenInWords(t, d.then)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => send({ cmd: "then", id: d.id, then: {} })}
+              aria-label={t.remove}
+              title={t.remove}
+              className="text-muted hover:text-text"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
 
         {d.path && (
           <div>

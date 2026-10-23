@@ -6,6 +6,12 @@
 //! the clock, with the speed and pause/resume for everything, a notification per download, and
 //! what to do once everything has downloaded (quit, sleep or shut down).
 
+mod browser;
+mod dropzone;
+mod hotkey;
+mod idle;
+mod remote;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -16,7 +22,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WindowEvent, Wry};
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -46,6 +52,8 @@ struct Tray {
     show: MenuItem<Wry>,
     pause: MenuItem<Wry>,
     resume: MenuItem<Wry>,
+    /// The polite mode, switched here as from the coffee cup in the window's status bar.
+    polite: CheckMenuItem<Wry>,
     quit: MenuItem<Wry>,
 }
 
@@ -159,6 +167,7 @@ fn start_engine(app: &AppHandle) -> Result<(), String> {
             if let Ok(event) = serde_json::from_str::<Value>(&line) {
                 match event["type"].as_str() {
                     Some("state") => {
+                        *events.state::<remote::Remote>().state.lock().unwrap() = line.clone();
                         let text = follow_state(&events, &event);
                         if text != tray_text && tray_changed.elapsed() >= TRAY_EVERY {
                             set_tray_status(&events, &text);
@@ -392,6 +401,11 @@ fn set_language(lang: String, app: AppHandle) {
         } else {
             ["Show Mox", "Pause all", "Resume all", "Quit"]
         };
+        let _ = tray.polite.set_text(if fa {
+            "کندتر وقتی با کامپیوتر کار می‌کنم"
+        } else {
+            "Slower while I use the computer"
+        });
         for (item, text) in [&tray.show, &tray.pause, &tray.resume, &tray.quit]
             .into_iter()
             .zip(texts)
@@ -399,6 +413,20 @@ fn set_language(lang: String, app: AppHandle) {
             let _ = item.set_text(text);
         }
     }
+}
+
+/// Where the browser extension is, for the welcome to show: the installers carry it, so it can be
+/// loaded into a browser from there.
+#[tauri::command]
+fn extension_folder(app: AppHandle) -> Result<String, String> {
+    let folder = app
+        .path()
+        .resolve("browser-extension", tauri::path::BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    if !folder.join("manifest.json").exists() {
+        return Err("the extension is not in this build".into());
+    }
+    Ok(folder.to_string_lossy().into_owned())
 }
 
 #[derive(Serialize)]
@@ -586,12 +614,34 @@ fn links_in(link: &str) -> Vec<String> {
 /// Queue the links in these command-line arguments or opened URLs, and bring the window up.
 fn take_links<'a>(app: &AppHandle, links: impl IntoIterator<Item = &'a str>) {
     let found: Vec<String> = links.into_iter().flat_map(links_in).collect();
-    if found.is_empty() {
-        return;
+    if !found.is_empty() {
+        queue_links(app, found);
     }
-    app.state::<Incoming>().0.lock().unwrap().extend(found);
+}
+
+/// Put links in the add dialog, and bring the window up to show it.
+fn queue_links(app: &AppHandle, links: Vec<String>) {
+    app.state::<Incoming>().0.lock().unwrap().extend(links);
     show_window(app);
     let _ = app.emit("links-incoming", ());
+}
+
+/// The web links in a piece of text, wherever they are in it: dropped, or on the clipboard.
+fn urls_in_text(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for word in text.split(|c: char| c.is_whitespace() || matches!(c, '<' | '>' | '"' | '\'' | '`'))
+    {
+        let Some(at) = word.find("http://").or_else(|| word.find("https://")) else {
+            continue;
+        };
+        let url = word[at..]
+            .trim_end_matches(['.', ',', ';', ')', ']'])
+            .to_owned();
+        if url.len() > "https://".len() && !found.contains(&url) {
+            found.push(url);
+        }
+    }
+    found
 }
 
 /// The links waiting for the add dialog, one per line, and forget them.
@@ -613,6 +663,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show Mox", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause_all", "Pause all", true, None::<&str>)?;
     let resume = MenuItem::with_id(app, "resume_all", "Resume all", true, None::<&str>)?;
+    let polite = CheckMenuItem::with_id(
+        app,
+        "polite",
+        "Slower while I use the computer",
+        true,
+        false,
+        None::<&str>,
+    )?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -622,6 +680,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             &show,
             &pause,
             &resume,
+            &polite,
             &PredefinedMenuItem::separator(app)?,
             &quit_item,
         ],
@@ -638,6 +697,10 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         "resume_all" => {
             let _ = send_to_engine(app, r#"{"cmd":"hold_all","on":false}"#);
         }
+        // The window keeps the setting, with its limit: it switches it and says back how it stands.
+        "polite" => {
+            let _ = app.emit("polite-toggle", ());
+        }
         "quit" => quit(app),
         _ => {}
     })
@@ -647,6 +710,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         show,
         pause,
         resume,
+        polite,
         quit: quit_item,
     });
     Ok(())
@@ -668,6 +732,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         // Started at login, it starts with --hidden: in the tray, where it carries on with what
         // was left unfinished, rather than as a window in the way.
         .plugin(tauri_plugin_autostart::init(
@@ -688,6 +753,9 @@ pub fn run() {
             countdown: AtomicU64::new(0),
         })
         .manage(Lang(Mutex::new("en".into())))
+        .manage(remote::Remote::new())
+        .manage(idle::Polite::new())
+        .manage(browser::Browser::new())
         .invoke_handler(tauri::generate_handler![
             engine_send,
             restart_engine,
@@ -696,8 +764,17 @@ pub fn run() {
             cancel_when_done,
             when_done_now,
             set_language,
+            extension_folder,
             check_update,
-            install_update
+            install_update,
+            remote::remote,
+            idle::set_polite,
+            browser::set_browser_start,
+            browser::take_link_headers,
+            hotkey::set_hotkey,
+            dropzone::set_dropzone,
+            dropzone::dropped_links,
+            dropzone::show_main
         ])
         .setup(|app| {
             // Installed apps register mox:// through their desktop file; a development build
@@ -726,9 +803,14 @@ pub fn run() {
             if let Err(message) = start_engine(app.handle()) {
                 let _ = app.handle().emit("engine-missing", message);
             }
+            idle::start(app.handle());
+            browser::start(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return; // the drop target closes like any small window
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let app = window.app_handle();
@@ -767,7 +849,17 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{digits, links_in};
+    use super::{digits, links_in, urls_in_text};
+
+    #[test]
+    fn urls_in_text_found() {
+        let text = "see https://a.example/1.zip, and (http://b.example/x.iso).\nhttps://a.example/1.zip again";
+        assert_eq!(
+            urls_in_text(text),
+            ["https://a.example/1.zip", "http://b.example/x.iso"]
+        );
+        assert!(urls_in_text("no links here, only ftp://x").is_empty());
+    }
 
     #[test]
     fn persian_digits() {

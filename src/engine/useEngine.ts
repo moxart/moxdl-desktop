@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { messages } from "../lib/i18n";
 import { startDemo } from "./demo";
-import type { Command, Config, EngineEvent, EngineState, History } from "./types";
+import type { Check, Command, Config, EngineEvent, EngineState, History, KnownFile } from "./types";
 
 export type Toast = { id: number; text: string; tone: "info" | "ok" | "error" };
 
@@ -25,6 +25,9 @@ export const useEngine = () => {
   const [config, setConfig] = useState<Config | null>(null);
   const [history, setHistory] = useState<History | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [known, setKnown] = useState<KnownFile[]>([]); // left out of an add, for the user to decide
+  const [checks, setChecks] = useState<Record<string, Check>>({}); // what servers said, by link
+  const [checkFree, setCheckFree] = useState<number | null>(null); // free space where the checked links go
   const nextToast = useRef(1);
   const demo = useRef<ReturnType<typeof startDemo> | null>(null);
 
@@ -83,6 +86,17 @@ export const useEngine = () => {
           break;
         case "added":
           break;
+        case "known":
+          setKnown((all) => [...all, ...event.items.filter((item) => !all.some((k) => k.url === item.url))]);
+          break;
+        case "checked": {
+          const { type: _, ...check } = event;
+          setChecks((all) => ({ ...all, [check.url]: check }));
+          break;
+        }
+        case "check_done":
+          setCheckFree(event.free);
+          break;
       }
     };
     if (!IN_APP) {
@@ -109,7 +123,25 @@ export const useEngine = () => {
     return () => stops.forEach((stop) => stop.then((unlisten) => unlisten()));
   }, [toast]);
 
-  return { connection, problem, version, state, settings, config, history, toasts, send, restart, toast };
+  const clearKnown = useCallback(() => setKnown([]), []);
+
+  return {
+    connection,
+    problem,
+    version,
+    state,
+    settings,
+    config,
+    history,
+    toasts,
+    known,
+    clearKnown,
+    checks,
+    checkFree,
+    send,
+    restart,
+    toast,
+  };
 };
 
 export type Engine = ReturnType<typeof useEngine>;
