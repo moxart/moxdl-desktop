@@ -35,6 +35,8 @@ const MOST_LINKS: usize = 500;
 pub struct Browser {
     /// Downloads from the browser start at once (Settings); otherwise they wait in the add dialog.
     start_at_once: AtomicBool,
+    /// The highest video quality to take, for pages sent as videos (Settings → Video sites).
+    quality: Mutex<String>,
     /// Headers of links waiting in the add dialog, for it to send along when they are added.
     waiting: Mutex<HashMap<String, Value>>,
     server: Mutex<Option<Arc<Server>>>,
@@ -44,6 +46,7 @@ impl Browser {
     pub fn new() -> Self {
         Browser {
             start_at_once: AtomicBool::new(true),
+            quality: Mutex::new("1080".into()),
             waiting: Mutex::new(HashMap::new()),
             server: Mutex::new(None),
         }
@@ -68,6 +71,11 @@ pub fn start(app: &AppHandle) {
             answer(&app, port, request);
         }
     });
+}
+
+#[tauri::command]
+pub fn set_video_quality(quality: String, app: AppHandle) {
+    *app.state::<Browser>().quality.lock().unwrap() = quality;
 }
 
 #[tauri::command]
@@ -158,7 +166,8 @@ fn answer(app: &AppHandle, port: u16, mut request: Request) {
     }
 }
 
-/// {"urls": [...], "headers": {"Cookie": ..., "Referer": ..., "User-Agent": ...}}
+/// {"urls": [...], "headers": {"Cookie": ..., "Referer": ..., "User-Agent": ...}, "media": true}
+/// media: the links are pages of a video site, to download as video at the quality in Settings.
 fn add(app: &AppHandle, body: &Value) -> (u16, Value) {
     let urls: Vec<String> = body["urls"]
         .as_array()
@@ -196,7 +205,12 @@ fn add(app: &AppHandle, body: &Value) -> (u16, Value) {
         crate::queue_links(app, urls);
         return (200, json!({ "ok": true, "started": false }));
     }
-    let command = json!({ "cmd": "add", "urls": urls, "headers": headers, "skip_known": true });
+    let command = if body["media"].as_bool() == Some(true) {
+        let quality = browser.quality.lock().unwrap().clone();
+        json!({ "cmd": "add", "urls": urls, "media": true, "quality": quality, "skip_known": true })
+    } else {
+        json!({ "cmd": "add", "urls": urls, "headers": headers, "skip_known": true })
+    };
     if let Err(e) = crate::send_to_engine(app, &command.to_string()) {
         return (503, json!({ "error": e }));
     }

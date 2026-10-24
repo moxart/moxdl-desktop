@@ -1,21 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, ClipboardPaste, FolderOpen, X } from "lucide-react";
+import { AlertTriangle, Clapperboard, ClipboardPaste, FolderOpen, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { Then } from "../engine/types";
+import type { Quality, Then } from "../engine/types";
 import type { Engine } from "../engine/useEngine";
 import { readClipboard, urlsIn } from "../lib/links";
 import { useAppSetting, useAppValue } from "../lib/appSettings";
-import { cn, humanSize } from "../lib/format";
+import { cn, humanSize, num } from "../lib/format";
 import { useT } from "../lib/i18n";
 import { Select } from "./Select";
+import { QUALITIES } from "./VideoSettings";
 
 type AddLinksProps = {
   engine: Engine;
   initialText: string;
   onClose: () => void;
+  defaultQuality: Quality; // Settings → Video sites
 };
+
+// Links that are pages of a video site, said before yt-dlp is there to read them.
+const VIDEO_SITE = /^https?:\/\/([^/]+\.)?(youtube\.com|youtu\.be|aparat\.com|instagram\.com|vimeo\.com|x\.com|twitter\.com|tiktok\.com|dailymotion\.com|twitch\.tv)\//i;
+
+const minutes = (seconds: number | null) =>
+  seconds == null ? "" : num(`${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, "0")}`);
 
 const isOn = (value: string | undefined) => ["on", "yes", "true", "1"].includes((value ?? "").toLowerCase());
 
@@ -37,7 +45,7 @@ const Toggle = ({ label, hint, checked, onChange }: { label: string; hint: strin
   </label>
 );
 
-export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
+export const AddLinks = ({ engine, initialText, onClose, defaultQuality }: AddLinksProps) => {
   const t = useT();
   const { settings, send } = engine;
   const [text, setText] = useState(initialText);
@@ -66,12 +74,26 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
   }, [urls, dir, send, engine.checks]);
   const answered = urls.map((url) => engine.checks[url]).filter(Boolean);
   const pending = urls.length <= CHECK_AT_MOST && answered.length < urls.length;
-  const good = answered.filter((c) => c.ok);
+  const good = answered.filter((c) => c.ok && !c.media); // videos are counted on their own, below
   const broken = answered.filter((c) => !c.ok);
   const total = good.reduce((sum, c) => sum + (c.size ?? 0), 0);
   const unknown = good.filter((c) => c.size == null).length;
   const free = engine.checkFree ?? engine.state?.free ?? null;
   const tooBig = free != null && total > free;
+  // Pages yt-dlp read as videos: downloaded as video, at the quality picked here.
+  const [quality, setQuality] = useState<Quality>(defaultQuality);
+  const videos = urls.filter((url) => engine.checks[url]?.media);
+  const videoSize = videos.reduce((sum, url) => {
+    const offered = engine.checks[url]?.media?.qualities ?? [];
+    const pick = quality === "audio" ? offered.find((q) => q.quality === "audio")
+      : offered.find((q) => q.height != null && (quality === "best" || q.height <= Number(quality))) ??
+        [...offered].reverse().find((q) => q.height != null); // none that low: the lowest there is
+    return sum + (pick?.size ?? 0);
+  }, 0);
+  const needsTool = !engine.tools?.ytdlp.version && urls.some((url) => VIDEO_SITE.test(url));
+  useEffect(() => {
+    if (needsTool && !engine.tools) send({ cmd: "tools" });
+  }, [needsTool, engine.tools, send]);
   const leaveOutBroken = () => {
     const gone = new Set(broken.map((c) => c.url));
     setText((current) => current.split(/\s+/).filter((word) => !gone.has(word)).join("\n"));
@@ -114,10 +136,11 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
       "__TAURI_INTERNALS__" in window
         ? await invoke<Record<string, Record<string, string>>>("take_link_headers", { urls }).catch(() => ({}))
         : {};
-    const own = Object.keys(withHeaders).filter((url) => Object.keys(withHeaders[url]).length);
+    const own = Object.keys(withHeaders).filter((url) => Object.keys(withHeaders[url]).length && !videos.includes(url));
+    if (videos.length) send({ cmd: "add", urls: videos, media: true, quality, ...options });
     // skip_known: files already on disk from before are left out, and asked about in a dialog.
     for (const url of own) send({ cmd: "add", urls: [url], headers: withHeaders[url], ...options });
-    const rest = own.length ? urls.filter((url) => !own.includes(url)) : null;
+    const rest = own.length || videos.length ? urls.filter((url) => !own.includes(url) && !videos.includes(url)) : null;
     if (rest === null) send({ cmd: "add", text, ...options });
     else if (rest.length) send({ cmd: "add", urls: rest, ...options });
     onClose();
@@ -179,6 +202,36 @@ export const AddLinks = ({ engine, initialText, onClose }: AddLinksProps) => {
                 </ul>
               </div>
             )}
+            {videos.length > 0 && (
+              <div className="mt-2 rounded-control border border-accent/30 bg-accent/5 px-3 py-2.5 text-sm">
+                <div className="flex items-center gap-3">
+                  <Clapperboard className="size-4 shrink-0 text-accent" />
+                  <span className="flex-1 font-semibold">
+                    {t.videosFound(videos.length)}
+                    {videoSize > 0 && <span className="font-normal text-muted tabular"> · {humanSize(videoSize)}</span>}
+                  </span>
+                  <Select
+                    className="w-36"
+                    label={t.quality}
+                    value={quality}
+                    options={QUALITIES.map((q) => [t.qualities[q], q])}
+                    onChange={(v) => setQuality(v as Quality)}
+                  />
+                </div>
+                <ul className="mt-1.5 space-y-0.5 text-xs text-muted">
+                  {videos.slice(0, 4).map((url) => (
+                    <li key={url} className="flex gap-2">
+                      <span dir="auto" className="min-w-0 flex-1 truncate">
+                        {engine.checks[url]?.media?.title ?? url}
+                      </span>
+                      <span className="shrink-0 tabular">{minutes(engine.checks[url]?.media?.duration ?? null)}</span>
+                    </li>
+                  ))}
+                  {videos.length > 4 && <li>…</li>}
+                </ul>
+              </div>
+            )}
+            {needsTool && <p className="mt-2 text-xs text-warn">{t.videoNeedsTool}</p>}
             {tooBig && (
               <p className="mt-2 flex items-center gap-2 text-xs text-danger">
                 <AlertTriangle className="size-3.5 shrink-0" />

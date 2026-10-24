@@ -16,6 +16,7 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Made for night plans and a shaky connection: download only between certain hours, or up to so much a day; slower by day, or while someone uses the computer (the cup in the status bar); a plain note when the internet is down; quit, sleep or shut down when everything is done.
 - Before it starts: the size of every link and the broken ones, a warning when they will not fit on the disk, and files you already have left out, with a question. A download that runs out of disk space waits for room instead of failing.
 - After a file is done: open it, move it to a folder, or run a command on it, such as a virus scan.
+- Videos from YouTube, Aparat, Instagram and about 1800 other sites: paste the page, pick a quality, and Mox downloads the picture and the sound over many connections and joins them; from the browser, right-click the page. It uses yt-dlp, a JavaScript runtime and ffmpeg, which it fetches in Settings, Video sites, from each project's own releases, checked against their checksums.
 - Watch a video while it downloads.
 - Downloads clicked in the browser start here at once, with the site's login if you allow it. Add links from the right-click menu, by dropping them on the window or on a small floating pomegranate, by pasting, or with Ctrl+Shift+M from any program. Links copied a moment ago are offered when the window comes to the front.
 - Send links from your phone: scan a QR code, and a page on your Wi-Fi adds links and shows the downloads.

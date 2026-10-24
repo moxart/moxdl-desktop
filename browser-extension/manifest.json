@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Download with Mox",
-  "version": "0.3.0",
-  "description": "Downloads go to the Mox desktop app and start at once, with the site's login if you allow it.",
+  "version": "0.4.0",
+  "description": "Downloads, and videos from YouTube and other sites, go to the Mox desktop app.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",

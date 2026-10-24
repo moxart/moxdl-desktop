@@ -64,6 +64,9 @@ const note = (t: Messages, d: Download, place: number | null): string => {
   if (d.status === "nospace") return t.noSpaceNote(d.message);
   if (d.status === "waiting") return place === 1 ? t.next : place ? t.waitingPlace(place) : t.waiting;
   if (d.message === OFFLINE) return t.offlineRow;
+  if (d.message === "asking the site") return t.askingSite;
+  if (d.message === "joining video and sound") return t.joining;
+  if (d.message === "the link expired: asking the site again") return t.linkExpiredAsking;
   if (d.message) return d.message;
   if (d.stream && d.ready && d.total) return t.playableTo(`${num(Math.floor((100 * d.ready) / d.total))}%`);
   return "";

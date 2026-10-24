@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAppSetting, useAppValue } from "../lib/appSettings";
+import type { Quality } from "./types";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 
@@ -21,6 +22,12 @@ export const useSystem = () => {
   const [dropzone, setDropzone] = useAppSetting("dropzone", false);
   // Downloads the browser extension hands over start at once, or wait in the add dialog.
   const [browserStart, setBrowserStart] = useAppSetting("browserStart", true);
+  // The highest video quality to take, here and for videos the browser sends.
+  const [videoQuality, setVideoQuality] = useAppValue<Quality>("videoQuality", "1080");
+
+  useEffect(() => {
+    if (IN_APP) invoke("set_video_quality", { quality: videoQuality }).catch(() => {});
+  }, [videoQuality]);
 
   useEffect(() => {
     if (IN_APP) invoke("set_browser_start", { on: browserStart }).catch(() => {});
@@ -51,7 +58,7 @@ export const useSystem = () => {
     if (IN_APP) invoke("set_dropzone", { on: dropzone }).catch(() => {});
   }, [dropzone]);
 
-  return { polite, setPolite, togglePolite, politeKnown, hotkey, setHotkey, hotkeyProblem, dropzone, setDropzone, browserStart, setBrowserStart };
+  return { polite, setPolite, togglePolite, politeKnown, hotkey, setHotkey, hotkeyProblem, dropzone, setDropzone, browserStart, setBrowserStart, videoQuality, setVideoQuality };
 };
 
 export type System = ReturnType<typeof useSystem>;

@@ -33,6 +33,7 @@ const episode = (n: number, total: number): Download => ({
   expired: false,
   then: {},
   learned: n % 2 === 0,
+  media: false,
 });
 
 export const startDemo = (emit: (event: EngineEvent) => void) => {
@@ -152,12 +153,29 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         urls.forEach((url, i) =>
           setTimeout(() => {
             const name = decodeURIComponent(url.split("/").pop()!.split("?")[0]);
-            emit(url.includes("gone") ? { type: "checked", url, ok: false, message: "HTTP 410 Gone", expired: true } : { type: "checked", url, ok: true, size: (700 + i * 230) * MB, name, ranges: true });
+            const video = /youtube\.com|youtu\.be|aparat\.com/.test(url);
+            const media = video
+              ? {
+                  title: i % 2 ? "Persepolis — official trailer" : "How the internet works, in 12 minutes",
+                  duration: 720 + i * 95,
+                  qualities: [
+                    { quality: "1080" as const, height: 1080, size: 210 * MB, join: true },
+                    { quality: "720" as const, height: 720, size: 96 * MB, join: true },
+                    { quality: "480" as const, height: 480, size: 51 * MB, join: true },
+                    { quality: "360" as const, height: 360, size: 33 * MB, join: false },
+                    { quality: "audio" as const, height: null, size: 11 * MB, join: false },
+                  ],
+                }
+              : null;
+            emit(url.includes("gone") ? { type: "checked", url, ok: false, message: "HTTP 410 Gone", expired: true } : { type: "checked", url, ok: true, size: video ? null : (700 + i * 230) * MB, name, ranges: true, media });
           }, 300 + i * 120),
         );
         setTimeout(() => emit({ type: "check_done", count: urls.length, free: 312 * 1024 * MB }), 400 + urls.length * 120);
         break;
       }
+      case "tools":
+        emit({ type: "tools", ytdlp: { version: "2026.10.21", own: true, stale: false }, js: "deno", ffmpeg: true, ffmpeg_own: false, can_install_ffmpeg: true });
+        break;
       case "learned":
       case "forget":
         // A made-up day: slow evenings, quick small hours, as a night plan sees it.

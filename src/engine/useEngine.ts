@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { messages } from "../lib/i18n";
 import { startDemo } from "./demo";
-import type { Check, Command, Config, EngineEvent, EngineState, History, KnownFile, Learned } from "./types";
+import type { Check, Command, Config, EngineEvent, EngineState, History, KnownFile, Learned, Tools } from "./types";
 
 export type Toast = { id: number; text: string; tone: "info" | "ok" | "error" };
 
@@ -29,6 +29,8 @@ export const useEngine = () => {
   const [checks, setChecks] = useState<Record<string, Check>>({}); // what servers said, by link
   const [checkFree, setCheckFree] = useState<number | null>(null); // free space where the checked links go
   const [learned, setLearned] = useState<Learned | null>(null);
+  const [tools, setTools] = useState<Tools | null>(null);
+  const [installing, setInstalling] = useState<{ tool: string; done: number; total: number | null } | null>(null);
   const nextToast = useRef(1);
   const demo = useRef<ReturnType<typeof startDemo> | null>(null);
 
@@ -98,6 +100,15 @@ export const useEngine = () => {
         case "check_done":
           setCheckFree(event.free);
           break;
+        case "tools": {
+          const { type: _, ...rest } = event;
+          setTools(rest);
+          setInstalling(null);
+          break;
+        }
+        case "installing":
+          setInstalling({ tool: event.tool, done: event.done, total: event.total });
+          break;
         case "learned": {
           const { type: _, ...rest } = event;
           setLearned(rest);
@@ -145,6 +156,8 @@ export const useEngine = () => {
     checks,
     checkFree,
     learned,
+    tools,
+    installing,
     send,
     restart,
     toast,

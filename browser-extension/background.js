@@ -23,6 +23,12 @@ const AGAIN_MS = 60_000;
 const PORTS = [6691, 6692, 6693];
 const ASK_MS = 800;
 
+// Video sites, for the "download the video" items: their pages, and links to them.
+const VIDEO_SITES = [
+  "youtube.com", "youtu.be", "aparat.com", "instagram.com", "vimeo.com", "x.com", "twitter.com",
+  "tiktok.com", "dailymotion.com", "twitch.tv",
+].flatMap((site) => [`*://${site}/*`, `*://*.${site}/*`]);
+
 const moxLink = (urls) => "mox://add?" + urls.map((url) => "url=" + encodeURIComponent(url)).join("&");
 
 const isFile = (url) => {
@@ -87,14 +93,15 @@ const headersFor = async (urls, referrer, incognito) => {
   return headers;
 };
 
-const send = async (urls, { tab, referrer, incognito } = {}) => {
+const send = async (urls, { tab, referrer, incognito, media = false } = {}) => {
   const unique = [...new Set(urls)].filter((url) => /^https?:/.test(url));
   if (!unique.length) return;
   const port = await findMox();
   if (port) {
     try {
       const headers = await headersFor(unique, referrer ?? tab?.url, incognito ?? tab?.incognito);
-      if ((await askMox(port, "/add", { urls: unique, headers })).ok) return;
+      // media: pages of a video site, which Mox reads with yt-dlp and downloads as video.
+      if ((await askMox(port, "/add", { urls: unique, headers, media })).ok) return;
     } catch {
       // gone since /hello: the mox:// link below starts it again
     }
@@ -110,6 +117,18 @@ api.runtime.onInstalled.addListener(() => {
     contexts: ["selection"],
   });
   api.contextMenus.create({
+    id: "mox-video",
+    title: "Download this video with Mox",
+    contexts: ["page", "video"],
+    documentUrlPatterns: VIDEO_SITES,
+  });
+  api.contextMenus.create({
+    id: "mox-video-link",
+    title: "Download the video at this link with Mox",
+    contexts: ["link"],
+    targetUrlPatterns: VIDEO_SITES,
+  });
+  api.contextMenus.create({
     id: "mox-page",
     title: "Download all file links on this page with Mox",
     contexts: ["page"],
@@ -118,7 +137,11 @@ api.runtime.onInstalled.addListener(() => {
 });
 
 api.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === "mox-link") {
+  if (info.menuItemId === "mox-video") {
+    send([info.pageUrl ?? tab.url], { tab, media: true });
+  } else if (info.menuItemId === "mox-video-link") {
+    send([info.linkUrl], { tab, media: true });
+  } else if (info.menuItemId === "mox-link") {
     send([info.linkUrl], { tab });
   } else if (info.menuItemId === "mox-selection") {
     send((info.selectionText ?? "").match(LINKS) ?? [], { tab });

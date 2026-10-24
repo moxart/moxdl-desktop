@@ -774,6 +774,7 @@ pub fn run() {
             remote::remote,
             idle::set_polite,
             browser::set_browser_start,
+            browser::set_video_quality,
             browser::take_link_headers,
             hotkey::set_hotkey,
             dropzone::set_dropzone,

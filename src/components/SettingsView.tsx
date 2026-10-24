@@ -14,6 +14,7 @@ import { type LangChoice, setLanguage, useLanguageChoice, useT } from "../lib/i1
 import { type ThemeChoice, setTheme, useThemeChoice } from "../lib/theme";
 import { PhoneSettings } from "./PhoneSettings";
 import { Select } from "./Select";
+import { VideoSettings } from "./VideoSettings";
 
 // Settings are mox's own (mox config), shared with the terminal: changing one here changes it there.
 const SWITCHES = new Set(["sort", "stream", "notify", "sound", "history"]);
@@ -364,6 +365,8 @@ export const SettingsView = ({
         system={system}
         best={engine.learned?.best ?? null}
       />
+      <h2 className="mb-3 text-sm font-semibold">{t.videoSites}</h2>
+      <VideoSettings engine={engine} quality={system.videoQuality} onQuality={system.setVideoQuality} />
       <h2 className="mb-3 text-sm font-semibold">{t.shortcuts}</h2>
       <Shortcuts system={system} />
       <h2 className="mb-3 text-sm font-semibold">{t.fromPhone}</h2>

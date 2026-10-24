@@ -30,6 +30,25 @@ export type Download = {
   expired: boolean;
   then: Then;
   learned: boolean; // its connection count came from what earlier downloads from its server taught
+  media: boolean; // a video from a site such as YouTube, through yt-dlp
+};
+
+export type Quality = "best" | "2160" | "1440" | "1080" | "720" | "480" | "360" | "audio";
+
+/** A page that yt-dlp reads as a video: its title and the qualities it offers. */
+export type MediaInfo = {
+  title: string | null;
+  duration: number | null;
+  qualities: { quality: Quality; height: number | null; size: number | null; join: boolean }[];
+};
+
+/** What mox has for video sites. */
+export type Tools = {
+  ytdlp: { version: string | null; own: boolean; stale: boolean };
+  js: string | null; // deno, node or bun
+  ffmpeg: boolean;
+  ffmpeg_own: boolean;
+  can_install_ffmpeg: boolean;
 };
 
 /** What to do with a file once done, in this order: move it, open it, run a command on it. */
@@ -99,6 +118,8 @@ export type EngineEvent =
   | ({ type: "checked" } & Check)
   | { type: "check_done"; count: number; free: number | null }
   | ({ type: "learned" } & Learned)
+  | ({ type: "tools" } & Tools)
+  | { type: "installing"; tool: string; done: number; total: number | null }
   | { type: "error"; text: string };
 
 /** A file downloaded before and still on disk, left out of an add. */
@@ -113,6 +134,7 @@ export type Check = {
   ranges?: boolean;
   message?: string;
   expired?: boolean;
+  media?: MediaInfo | null;
 };
 
 export type Command =
@@ -127,6 +149,8 @@ export type Command =
       then?: Then;
       skip_known?: boolean;
       headers?: Record<string, string>;
+      media?: boolean;
+      quality?: Quality;
     }
   | { cmd: "then"; id: number; then: Then }
   | { cmd: "check"; text?: string; urls?: string[]; dir?: string }
@@ -154,5 +178,7 @@ export type Command =
   | { cmd: "config_set"; key: string; value: string | null }
   | { cmd: "history"; limit?: number }
   | { cmd: "learned" }
+  | { cmd: "tools" }
+  | { cmd: "install"; tool: "yt-dlp" | "deno" | "ffmpeg" }
   | { cmd: "forget" }
   | { cmd: "quit" };

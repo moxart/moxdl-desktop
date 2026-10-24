@@ -242,7 +242,13 @@ export const App = () => {
       <StatusBar engine={engine} whenDone={whenDone} system={system} />
       <Toasts toasts={engine.toasts} />
       {adding !== null && (
-        <AddLinks key={addKey} engine={engine} initialText={adding} onClose={() => setAdding(null)} />
+        <AddLinks
+          key={addKey}
+          engine={engine}
+          initialText={adding}
+          onClose={() => setAdding(null)}
+          defaultQuality={system.videoQuality}
+        />
       )}
       {incoming.dropping && <DropOverlay />}
       {showPhone && <PhoneDialog phone={phone} onClose={() => setShowPhone(false)} />}
