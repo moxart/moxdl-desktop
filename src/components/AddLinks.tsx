@@ -99,9 +99,15 @@ export const AddLinks = ({ engine, initialText, onClose, defaultQuality }: AddLi
     setText((current) => current.split(/\s+/).filter((word) => !gone.has(word)).join("\n"));
   };
 
+  // Only links not in the box already: opening the dialog reads the clipboard, and that ran twice
+  // in development (React's strict mode), which put every copied link in twice.
   const fromClipboard = useCallback(async () => {
     const urls = urlsIn(await readClipboard());
-    if (urls.length) setText((current) => (current.trim() ? `${current}\n` : "") + urls.join("\n"));
+    setText((current) => {
+      const there = new Set(linksIn(current));
+      const fresh = [...new Set(urls)].filter((url) => !there.has(url));
+      return fresh.length ? (current.trim() ? `${current}\n` : "") + fresh.join("\n") : current;
+    });
   }, []);
 
   // Opening the dialog looks at the clipboard: links copied a moment ago are usually the ones wanted.
