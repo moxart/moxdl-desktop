@@ -464,17 +464,32 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| e.to_string())?
         .ok_or("Mox is up to date")?;
-    let mut received = 0u64;
-    let bytes = update
-        .download(
-            |chunk, total| {
-                received += chunk as u64;
-                let _ = app.emit("update-progress", (received, total));
-            },
-            || {},
-        )
+    // Mox downloads its own update: over many connections, picking up after a dropped one, and
+    // through a proxy app where GitHub cannot be reached directly. The updater's own download, one
+    // connection with no second try, failed with "error decoding response body" on a slow link.
+    let url = update.download_url.to_string();
+    let downloader = app.clone();
+    let fetched = tauri::async_runtime::spawn_blocking(move || fetch_with_mox(&downloader, &url))
         .await
         .map_err(|e| e.to_string())?;
+    let bytes = match fetched {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            let mut received = 0u64;
+            update
+                .download(
+                    |chunk, total| {
+                        received += chunk as u64;
+                        let _ = app.emit("update-progress", (received, total));
+                    },
+                    || {},
+                )
+                .await
+                .map_err(|e| e.to_string())?
+        }
+    };
+    // install() checks the bytes against the update's signature before anything runs, whichever
+    // way they came.
     // The engine sits next to the app, and the installer replaces it: stopping it first frees
     // the file, and saves every download's progress for the new version to carry on.
     let engine = app.clone();
@@ -486,6 +501,70 @@ async fn install_update(app: AppHandle) -> Result<(), String> {
         return Err(e.to_string());
     }
     app.restart();
+}
+
+/// Download a file with mox itself, as a command (the bundled engine is the whole of mox), and
+/// return its bytes. Progress goes out as "update-progress", read from mox's state file.
+fn fetch_with_mox(app: &AppHandle, url: &str) -> Result<Vec<u8>, String> {
+    let folder = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("update");
+    let _ = std::fs::remove_dir_all(&folder); // an earlier update's leftovers, never resumed into this one
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let name = url
+        .rsplit('/')
+        .next()
+        .filter(|n| !n.is_empty())
+        .unwrap_or("update")
+        .to_owned();
+    let mut command = engine_command();
+    command
+        .args([url, "-d"])
+        .arg(&folder)
+        .args([
+            "-o",
+            &name,
+            "--no-history",
+            "--fallback-proxy",
+            "auto",
+            "-c",
+            "8",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    let state = folder.join(format!("{name}.mox"));
+    let status = loop {
+        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+            break status;
+        }
+        // {"total": ..., "segments": [{"done": ...}, ...]}, rewritten about once a second
+        if let Some(saved) = std::fs::read_to_string(&state)
+            .ok()
+            .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+        {
+            let done: u64 = saved["segments"]
+                .as_array()
+                .map(|all| all.iter().filter_map(|s| s["done"].as_u64()).sum())
+                .unwrap_or(0);
+            let _ = app.emit("update-progress", (done, saved["total"].as_u64()));
+        }
+        thread::sleep(Duration::from_millis(500));
+    };
+    if !status.success() {
+        return Err(format!("mox could not download the update ({status})"));
+    }
+    let bytes = std::fs::read(folder.join(&name)).map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_dir_all(&folder);
+    Ok(bytes)
 }
 
 /// The same units as mox prints.
