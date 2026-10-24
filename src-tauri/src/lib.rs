@@ -10,6 +10,7 @@ mod browser;
 mod dropzone;
 mod hotkey;
 mod idle;
+mod presence;
 mod remote;
 
 use std::io::{BufRead, BufReader, Write};
@@ -220,7 +221,8 @@ fn follow_state(app: &AppHandle, state: &Value) -> String {
     let waiting = downloads.iter().filter(|d| status(d) == "waiting").count();
     let busy = running + waiting > 0;
     app.state::<Engine>().busy.store(busy, Ordering::Relaxed);
-    follow_finish(app, busy);
+    let ran_dry = follow_finish(app, busy);
+    presence::follow(app, state, ran_dry);
     let fa = persian(app);
     if running == 0 {
         return match (waiting > 0, fa) {
@@ -239,13 +241,13 @@ fn follow_state(app: &AppHandle, state: &Value) -> String {
 }
 
 /// Start the countdown when the queue has just run dry because the last download finished.
-/// mox reports a download's end before the state that shows the queue empty.
-fn follow_finish(app: &AppHandle, busy: bool) {
+/// mox reports a download's end before the state that shows the queue empty. True then.
+fn follow_finish(app: &AppHandle, busy: bool) -> bool {
     let finish = app.state::<Finish>();
     if busy {
         finish.was_busy.store(true, Ordering::Relaxed);
         finish.just_finished.store(false, Ordering::Relaxed);
-        return;
+        return false;
     }
     let ran_dry = finish.was_busy.swap(false, Ordering::Relaxed)
         && finish.just_finished.swap(false, Ordering::Relaxed);
@@ -253,6 +255,7 @@ fn follow_finish(app: &AppHandle, busy: bool) {
     if ran_dry && action != WhenDone::Nothing {
         start_countdown(app, action);
     }
+    ran_dry
 }
 
 fn start_countdown(app: &AppHandle, action: WhenDone) {
@@ -756,6 +759,7 @@ pub fn run() {
         .manage(remote::Remote::new())
         .manage(idle::Polite::new())
         .manage(browser::Browser::new())
+        .manage(presence::Presence::new())
         .invoke_handler(tauri::generate_handler![
             engine_send,
             restart_engine,

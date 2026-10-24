@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { messages } from "../lib/i18n";
 import { startDemo } from "./demo";
-import type { Check, Command, Config, EngineEvent, EngineState, History, KnownFile } from "./types";
+import type { Check, Command, Config, EngineEvent, EngineState, History, KnownFile, Learned } from "./types";
 
 export type Toast = { id: number; text: string; tone: "info" | "ok" | "error" };
 
@@ -28,6 +28,7 @@ export const useEngine = () => {
   const [known, setKnown] = useState<KnownFile[]>([]); // left out of an add, for the user to decide
   const [checks, setChecks] = useState<Record<string, Check>>({}); // what servers said, by link
   const [checkFree, setCheckFree] = useState<number | null>(null); // free space where the checked links go
+  const [learned, setLearned] = useState<Learned | null>(null);
   const nextToast = useRef(1);
   const demo = useRef<ReturnType<typeof startDemo> | null>(null);
 
@@ -97,6 +98,11 @@ export const useEngine = () => {
         case "check_done":
           setCheckFree(event.free);
           break;
+        case "learned": {
+          const { type: _, ...rest } = event;
+          setLearned(rest);
+          break;
+        }
       }
     };
     if (!IN_APP) {
@@ -138,6 +144,7 @@ export const useEngine = () => {
     clearKnown,
     checks,
     checkFree,
+    learned,
     send,
     restart,
     toast,

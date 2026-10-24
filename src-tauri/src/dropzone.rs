@@ -17,7 +17,11 @@ pub fn set_dropzone(on: bool, app: AppHandle) -> Result<(), String> {
     let existing = app.get_webview_window(LABEL);
     match (on, existing) {
         (false, Some(window)) => window.destroy().map_err(|e| e.to_string()),
-        (true, None) => open(&app),
+        (true, None) => {
+            open(&app)?;
+            crate::presence::forget_ring(&app);
+            Ok(())
+        }
         _ => Ok(()),
     }
 }

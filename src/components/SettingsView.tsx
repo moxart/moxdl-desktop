@@ -1,12 +1,15 @@
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { Brain } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 
 import type { Quota, Schedule, Slow } from "../App";
+import type { Learned } from "../engine/types";
 import type { Engine } from "../engine/useEngine";
 import type { Phone } from "../engine/usePhone";
 import type { System } from "../engine/useSystem";
 import type { Updates } from "../engine/useUpdates";
-import { rate } from "../lib/format";
+import { num, rate } from "../lib/format";
+import { APP_VERSION } from "../lib/version";
 import { type LangChoice, setLanguage, useLanguageChoice, useT } from "../lib/i18n";
 import { type ThemeChoice, setTheme, useThemeChoice } from "../lib/theme";
 import { PhoneSettings } from "./PhoneSettings";
@@ -88,10 +91,28 @@ const WhenToDownload = ({
   slow,
   onSlow,
   system,
-}: Pick<SettingsViewProps, "schedule" | "onSchedule" | "quota" | "onQuota" | "slow" | "onSlow" | "system">) => {
+  best,
+}: Pick<SettingsViewProps, "schedule" | "onSchedule" | "quota" | "onQuota" | "slow" | "onSlow" | "system"> & {
+  best: Learned["best"];
+}) => {
   const t = useT();
+  const suggested = best && !(schedule.on && schedule.from === best.from && schedule.until === best.until);
   return (
     <div className="mb-8 space-y-4">
+      {/* What mox learned of this internet, offered where it is used. */}
+      {suggested && (
+        <div className="flex items-center gap-3 rounded-card border border-accent/30 bg-accent/10 px-4 py-2.5 text-sm">
+          <Brain className="size-4 shrink-0 text-accent" />
+          <span className="flex-1">{t.hoursBest(num(best.from), num(best.until), num(best.factor))}</span>
+          <button
+            type="button"
+            onClick={() => onSchedule({ on: true, from: best.from, until: best.until })}
+            className="shrink-0 rounded-control button-primary px-3 py-1 font-semibold"
+          >
+            {t.useTheseHours}
+          </button>
+        </div>
+      )}
       <div className="flex items-start justify-between gap-6">
         <label className="flex cursor-pointer items-start gap-3">
           <input
@@ -229,7 +250,7 @@ const Switch = ({ label, about, checked, onChange }: { label: string; about: str
   </label>
 );
 
-const UpdateSettings = ({ updates }: { updates: Updates }) => {
+const UpdateSettings = ({ updates, engineVersion }: { updates: Updates; engineVersion: string }) => {
   const t = useT();
   const { status, available } = updates;
   const result =
@@ -244,7 +265,7 @@ const UpdateSettings = ({ updates }: { updates: Updates }) => {
             : "";
   return (
     <>
-      <Setting label={t.updates} about={t.updatesAbout(updates.version)}>
+      <Setting label={t.updates} about={t.updatesAbout(updates.version || APP_VERSION, engineVersion)}>
         {result && (
           <span className={status === "failed" ? "max-w-56 truncate text-danger" : "text-muted"} title={result}>
             {result}
@@ -290,7 +311,10 @@ export const SettingsView = ({
   const [startAtLogin, setStartAtLogin] = useStartAtLogin();
   const language = useLanguageChoice();
   const theme = useThemeChoice();
-  useEffect(() => send({ cmd: "config" }), [send]);
+  useEffect(() => {
+    send({ cmd: "config" });
+    send({ cmd: "learned" });
+  }, [send]);
   if (!config) return <p className="p-6 text-muted">{t.loading}</p>;
 
   const save = (key: string, value: string | null) => send({ cmd: "config_set", key, value });
@@ -322,7 +346,7 @@ export const SettingsView = ({
         {startAtLogin !== null && (
           <Switch label={t.startAtLogin} about={t.startAtLoginAbout} checked={startAtLogin} onChange={setStartAtLogin} />
         )}
-        {IN_APP && <UpdateSettings updates={updates} />}
+        {IN_APP && <UpdateSettings updates={updates} engineVersion={engine.version} />}
         <Setting label={t.showWelcome} about={t.showWelcomeAbout}>
           <button type="button" onClick={onWelcome} className="rounded-control bg-raised px-3 py-1.5 text-text hover:bg-hover">
             {t.show}
@@ -338,6 +362,7 @@ export const SettingsView = ({
         slow={slow}
         onSlow={onSlow}
         system={system}
+        best={engine.learned?.best ?? null}
       />
       <h2 className="mb-3 text-sm font-semibold">{t.shortcuts}</h2>
       <Shortcuts system={system} />

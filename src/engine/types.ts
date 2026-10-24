@@ -29,6 +29,7 @@ export type Download = {
   pieces: number[] | null; // 0 to 3: how much of each cell of the file is on disk
   expired: boolean;
   then: Then;
+  learned: boolean; // its connection count came from what earlier downloads from its server taught
 };
 
 /** What to do with a file once done, in this order: move it, open it, run a command on it. */
@@ -50,6 +51,15 @@ export type EngineState = {
   rate: number | null; // the limit in force now
   lowered: "slow" | "polite" | null; // why rate is below limit
   offline: number | null; // seconds since the internet went down
+  forecast: number | null; // seconds until the queue is done, by the hours' usual speeds
+};
+
+/** What mox learned: the internet's usual speed at each hour, and the servers it knows. */
+export type Learned = {
+  hours: [number, number][]; // 24 of [samples, bytes a second]
+  best: { from: string; until: string; factor: number } | null;
+  servers: number;
+  enabled: boolean;
 };
 
 export type Window = { from: string; until: string }; // "02:00", "07:00"
@@ -88,6 +98,7 @@ export type EngineEvent =
   | { type: "known"; items: KnownFile[] }
   | ({ type: "checked" } & Check)
   | { type: "check_done"; count: number; free: number | null }
+  | ({ type: "learned" } & Learned)
   | { type: "error"; text: string };
 
 /** A file downloaded before and still on disk, left out of an add. */
@@ -142,4 +153,6 @@ export type Command =
   | { cmd: "config" }
   | { cmd: "config_set"; key: string; value: string | null }
   | { cmd: "history"; limit?: number }
+  | { cmd: "learned" }
+  | { cmd: "forget" }
   | { cmd: "quit" };

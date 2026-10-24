@@ -32,6 +32,7 @@ const episode = (n: number, total: number): Download => ({
   pieces: Array(CELLS).fill(0),
   expired: false,
   then: {},
+  learned: n % 2 === 0,
 });
 
 export const startDemo = (emit: (event: EngineEvent) => void) => {
@@ -83,7 +84,7 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         emit({ type: "finished", id: d.id, status: "done", name: d.name, message: "", path: d.path });
       }
     }
-    emit({ type: "state", version: VERSION, downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit, free: 312 * 1024 * MB, window: null, quota: null, today: 3.2 * 1024 * MB, gate: null, slow, rate: slow ? slow.limit : limit, lowered: slow ? "slow" : null, offline: OFFLINE ? Math.round((Date.now() - offlineSince) / 1000) + 194 : null });
+    emit({ type: "state", version: VERSION, downloads: structuredClone(downloads), speed: downloads.reduce((s, d) => s + d.speed, 0), focus, jobs, limit, free: 312 * 1024 * MB, window: null, quota: null, today: 3.2 * 1024 * MB, gate: null, slow, rate: slow ? slow.limit : limit, lowered: slow ? "slow" : null, offline: OFFLINE ? Math.round((Date.now() - offlineSince) / 1000) + 194 : null, forecast: null });
   };
 
   const find = (id: number) => downloads.findIndex((d) => d.id === id);
@@ -157,6 +158,20 @@ export const startDemo = (emit: (event: EngineEvent) => void) => {
         setTimeout(() => emit({ type: "check_done", count: urls.length, free: 312 * 1024 * MB }), 400 + urls.length * 120);
         break;
       }
+      case "learned":
+      case "forget":
+        // A made-up day: slow evenings, quick small hours, as a night plan sees it.
+        emit({
+          type: "learned",
+          hours: Array.from({ length: 24 }, (_, h) => {
+            const speed = h >= 1 && h < 7 ? 9.5 : h >= 18 && h < 24 ? 2.2 : 4.6;
+            return [c.cmd === "forget" ? 0 : 12, c.cmd === "forget" ? 0 : Math.round((speed + Math.sin(h) * 0.6) * MB)];
+          }),
+          best: c.cmd === "forget" ? null : { from: "02:00", until: "06:00", factor: 2.1 },
+          servers: c.cmd === "forget" ? 0 : 14,
+          enabled: true,
+        });
+        break;
       case "clipboard":
         emit({ type: "clipboard", urls: [], tool: "wl-paste", files: !!c.files });
         break;

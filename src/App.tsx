@@ -22,6 +22,7 @@ import { type Updates, useUpdates } from "./engine/useUpdates";
 import { useAppSetting, useAppValue } from "./lib/appSettings";
 import { cn, humanTime, num } from "./lib/format";
 import { useT } from "./lib/i18n";
+import { APP_VERSION } from "./lib/version";
 
 export type Schedule = { on: boolean; from: string; until: string };
 export type Quota = { on: boolean; gb: number };
@@ -171,7 +172,10 @@ export const App = () => {
             </button>
           ))}
         </nav>
-        <span className="ms-auto text-xs text-faint">{engine.version && `Mox ${engine.version}`}</span>
+        {/* The app's version, as its releases are numbered; the engine's is on hover and in Settings. */}
+        <span className="ms-auto text-xs text-faint" title={engine.version ? t.engineVersion(engine.version) : undefined}>
+          Mox {APP_VERSION}
+        </span>
         {/* Links from a phone, one click away: it switches the page on, and shows its code. */}
         <button
           type="button"

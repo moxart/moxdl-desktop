@@ -103,7 +103,12 @@ export const Details = ({ download: d, send, onClose }: DetailsProps) => {
           </Row>
           {running && <Row label={t.timeLeft}>{humanTime(d.eta)}</Row>}
           {running && d.eta != null && <Row label={t.finishesAt}>{t.finishesAbout(clockIn(d.eta))}</Row>}
-          {running && <Row label={t.connections}>{num(d.connections)}</Row>}
+          {running && (
+            <Row label={t.connections}>
+              {num(d.connections)}
+              {d.learned && <span className="text-muted"> · {t.learnedForSite}</span>}
+            </Row>
+          )}
           <Row label={t.kind}>{t.kinds[d.kind] ?? d.kind}</Row>
           {d.stream && d.ready != null && d.total && <Row label={t.playableToLabel}>{percent(d.ready, d.total)}</Row>}
         </div>

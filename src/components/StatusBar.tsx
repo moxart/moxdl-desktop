@@ -67,7 +67,9 @@ export const StatusBar = ({ engine, whenDone, system }: { engine: Engine; whenDo
   // paused, over the total speed. Unknown while a size is unknown or the schedule holds them.
   const going = unfinished.filter((d) => d.status !== "held");
   const left = going.every((d) => d.total) ? going.reduce((sum, d) => sum + (d.total ?? 0) - d.done, 0) : null;
-  const allDone = state && !state.gate && state.speed > 0 && left ? left / state.speed : null;
+  // mox's own forecast goes hour by hour at each hour's usual speed, as it learned them; this
+  // plain one, at the speed now, stands in while it has none.
+  const allDone = state?.forecast ?? (state && !state.gate && state.speed > 0 && left ? left / state.speed : null);
   const current = state?.limit ?? null;
   const limits = LIMITS.includes(current) ? LIMITS : [...LIMITS, current];
 

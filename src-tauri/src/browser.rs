@@ -234,12 +234,14 @@ fn file_name(url: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         let hex = |b: u8| (b as char).to_digit(16);
-        if bytes[i] == b'%' && i + 2 < bytes.len()
-            && let (Some(a), Some(b)) = (hex(bytes[i + 1]), hex(bytes[i + 2])) {
-                out.push((a * 16 + b) as u8);
-                i += 3;
-                continue;
-            }
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let (Some(a), Some(b)) = (hex(bytes[i + 1]), hex(bytes[i + 2]))
+        {
+            out.push((a * 16 + b) as u8);
+            i += 3;
+            continue;
+        }
         out.push(bytes[i]);
         i += 1;
     }

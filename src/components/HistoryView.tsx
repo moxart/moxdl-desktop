@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Engine } from "../engine/useEngine";
 import { humanSize, num } from "../lib/format";
 import { useT } from "../lib/i18n";
+import { HoursChart } from "./HoursChart";
 import { UsageChart } from "./UsageChart";
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
@@ -17,7 +18,10 @@ export const HistoryView = ({ engine }: { engine: Engine }) => {
   const t = useT();
   const { history, send } = engine;
   const [query, setQuery] = useState("");
-  useEffect(() => send({ cmd: "history", limit: 500 }), [send]);
+  useEffect(() => {
+    send({ cmd: "history", limit: 500 });
+    send({ cmd: "learned" });
+  }, [send]);
 
   if (!history) return <p className="p-6 text-muted">{t.loading}</p>;
   if (!history.enabled && !history.entries.length)
@@ -41,6 +45,7 @@ export const HistoryView = ({ engine }: { engine: Engine }) => {
       {history.enabled && history.daily && (
         <UsageChart daily={history.daily} today={engine.state?.today ?? null} quota={engine.state?.quota ?? null} />
       )}
+      {engine.learned && <HoursChart learned={engine.learned} onForget={() => send({ cmd: "forget" })} />}
 
       <section className="flex flex-wrap gap-2">
         {[...kinds.entries()]

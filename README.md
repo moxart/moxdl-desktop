@@ -10,7 +10,9 @@ A desktop app for [Mox](https://github.com/moxart/moxdl), the multi-connection d
 - Pause, resume, and survive reboots and internet outages.
 - Drag downloads into the order you want, or give one all the speed.
 - Keyboard shortcuts, search, and a details panel with the piece map, the speed graph and the link.
+- It learns, on your computer alone: how many connections suit each site, and how fast your internet usually is at each hour. That makes the finish time better, and it suggests the hours worth downloading in.
 - When each file and the whole queue will be done, by the clock.
+- Shows what it is doing outside its window too: the tray icon (downloading, paused, done), progress on the taskbar or dock icon, and the window's title.
 - Made for night plans and a shaky connection: download only between certain hours, or up to so much a day; slower by day, or while someone uses the computer (the cup in the status bar); a plain note when the internet is down; quit, sleep or shut down when everything is done.
 - Before it starts: the size of every link and the broken ones, a warning when they will not fit on the disk, and files you already have left out, with a question. A download that runs out of disk space waits for room instead of failing.
 - After a file is done: open it, move it to a folder, or run a command on it, such as a virus scan.
