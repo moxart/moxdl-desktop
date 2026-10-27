@@ -34,11 +34,11 @@ Built with Tauri 2, React and Tailwind. Linux, Windows and macOS.
 From a [release](https://github.com/moxart/moxdl-desktop/releases), on Linux:
 
 ```bash
-sudo apt install ./Mox_0.6.0_amd64.deb      # Debian, Ubuntu
-chmod +x Mox_0.6.0_amd64.AppImage && ./Mox_0.6.0_amd64.AppImage   # any distribution
+sudo apt install ./Mox_0.6.1_amd64.deb      # Debian, Ubuntu
+chmod +x Mox_0.6.1_amd64.AppImage && ./Mox_0.6.1_amd64.AppImage   # any distribution
 ```
 
-On Windows run `Mox_0.6.0_x64-setup.exe`; on a Mac open `Mox_0.6.0_aarch64.dmg` (Apple silicon) or `Mox_0.6.0_x64.dmg` (Intel). The installers are not signed yet, so Windows shows a SmartScreen warning (More info → Run anyway), and macOS needs a right-click → Open the first time.
+On Windows run `Mox_0.6.1_x64-setup.exe`; on a Mac open `Mox_0.6.1_aarch64.dmg` (Apple silicon) or `Mox_0.6.1_x64.dmg` (Intel). The installers are not signed yet, so Windows shows a SmartScreen warning (More info → Run anyway), and macOS needs a right-click → Open the first time.
 
 Mox is built into the app, so nothing else is needed: no Python, no separate install.
 
