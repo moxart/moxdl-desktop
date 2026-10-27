@@ -91,7 +91,7 @@ opens the interface in a browser at http://localhost:1420 with a pretend engine 
 
 - **Colors, corners and fonts** are all in [`src/theme/tokens.css`](src/theme/tokens.css). Components only use the names defined there (`bg-surface`, `text-muted`, `rounded-card`…), so changing a value restyles everything that uses it.
 - **Each part of the window** is its own file in [`src/components/`](src/components): a download's row, the piece-map bar, the add dialog, the dropdowns, the status bar, history, settings.
-- **The icon** is made from [`app-icon.png`](app-icon.png), 1024 px with a transparent background: `npx tauri icon app-icon.png` makes every size.
+- **The icon** is made from [`app-icon.png`](app-icon.png), 1024 px: the pomegranate of [`icon-fruit.png`](icon-fruit.png), close up on a crimson tile with Karvan's corners. `npx tauri icon app-icon.png` makes every size (leave out the android and ios folders it adds); `src-tauri/icons/tray` holds the tray's downloading, paused and done states.
 
 ## How it fits together
 

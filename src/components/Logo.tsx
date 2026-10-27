@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import pomegranate from "../assets/pomegranate.png";
 import { cn } from "../lib/format";
 
-// The name in Yeseva One, with the app's pomegranate (app-icon.png) as its o. The letters are
+// The name in Yeseva One, with the app's pomegranate (icon-fruit.png) as its o. The letters are
 // muted so the fruit is the only colour: the fruit and the name are one mark. Always left to
 // right, Persian included: it is a name, not a word.
 //
